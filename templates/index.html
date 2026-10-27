@@ -1,0 +1,955 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>AI Ghost Story Generator 👻 | Turn Imagination into Terrifying Stories</title>
+    <meta name="description" content="Turn your darkest ideas, haunted memories, and eerie dreams into original ghost stories using open-source AI and Ollama. Featuring animated ghosts and a haunted gothic atmosphere.">
+    
+    <!-- Google Fonts: Horror & Modern Display -->
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Cinzel+Decorative:wght@700;900&family=Creepster&family=Plus+Jakarta+Sans:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+    
+    <!-- Stylesheet -->
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/style.css') }}">
+    
+    <!-- Favicon (Inline SVG Ghost) -->
+    <link rel="icon" type="image/svg+xml" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><path d='M50,15 C30,15 20,35 20,60 C20,80 25,85 32,80 C39,75 43,85 50,80 C57,75 61,85 68,80 C75,85 80,80 80,60 C80,35 70,15 50,15 Z' fill='%23ffffff'/><circle cx='40' cy='45' r='5' fill='%23120c24'/><circle cx='60' cy='45' r='5' fill='%23120c24'/><ellipse cx='50' cy='60' rx='4' ry='7' fill='%23120c24'/></svg>">
+</head>
+<body class="haunted-theme">
+
+    <!-- ATMOSPHERIC BACKGROUND EFFECTS (Layer 0) -->
+    <div class="sky-background" aria-hidden="true">
+        <div class="lightning-flash"></div>
+        <div class="stars-cluster"></div>
+        
+        <!-- Glowing Full Moon with Pulsing Aura -->
+        <div class="full-moon">
+            <div class="moon-halo"></div>
+            <div class="moon-crater crater-1"></div>
+            <div class="moon-crater crater-2"></div>
+            <div class="moon-crater crater-3"></div>
+            <div class="moon-cloud cloud-1"></div>
+            <div class="moon-cloud cloud-2"></div>
+        </div>
+
+        <!-- Floating Supernatural Dust Particles -->
+        <div class="spirit-particles" id="spirit-particles">
+            <span class="particle p-1"></span>
+            <span class="particle p-2"></span>
+            <span class="particle p-3"></span>
+            <span class="particle p-4"></span>
+            <span class="particle p-5"></span>
+            <span class="particle p-6"></span>
+            <span class="particle p-7"></span>
+            <span class="particle p-8"></span>
+        </div>
+
+        <!-- Gothic Haunted Mansion Silhouette -->
+        <div class="mansion-silhouette">
+            <svg viewBox="0 0 1200 400" preserveAspectRatio="none" class="mansion-svg">
+                <!-- Distant misty hill line -->
+                <path d="M0,320 Q300,280 600,310 T1200,290 L1200,400 L0,400 Z" fill="#0b0817" opacity="0.6"/>
+                <!-- Gnarled twisted trees on left -->
+                <path d="M70,360 C65,300 40,270 20,240 C35,245 50,230 45,210 C55,225 75,230 70,255 C85,240 110,235 125,215 C115,235 105,250 85,270 C105,285 115,315 95,360 Z" fill="#07050f"/>
+                <!-- Graveyard headstones -->
+                <path d="M140,360 L140,335 C140,325 155,325 155,335 L155,360 Z" fill="#07050f"/>
+                <path d="M175,360 L175,340 C175,332 188,332 188,340 L188,360 Z" fill="#07050f"/>
+                <path d="M210,360 L210,330 C210,320 225,320 225,330 L225,360 Z" fill="#07050f"/>
+                <!-- Iron fence spikes -->
+                <path d="M0,355 L1200,355 L1200,360 L0,360 Z" fill="#05030a"/>
+                <!-- Victorian Gothic Mansion -->
+                <!-- Left Wing -->
+                <polygon points="380,360 380,240 430,170 480,240 480,360" fill="#07050f"/>
+                <polygon points="410,170 430,120 450,170" fill="#05030a"/>
+                <!-- Center Grand Tower -->
+                <polygon points="480,360 480,180 540,80 600,180 600,360" fill="#07050f"/>
+                <polygon points="520,80 540,25 560,80" fill="#040208"/>
+                <line x1="540" y1="25" x2="540" y2="5" stroke="#a855f7" stroke-width="2"/>
+                <!-- Right Wing & Turret -->
+                <polygon points="600,360 600,220 660,150 720,220 720,360" fill="#07050f"/>
+                <polygon points="690,220 720,130 750,220 750,360" fill="#06040c"/>
+                <polygon points="705,130 720,70 735,130" fill="#040208"/>
+                <line x1="720" y1="70" x2="720" y2="50" stroke="#a855f7" stroke-width="1.5"/>
+                <!-- Chimneys -->
+                <rect x="460" y="190" width="16" height="50" fill="#07050f"/>
+                <rect x="630" y="170" width="16" height="50" fill="#07050f"/>
+                <!-- Arched Windows with eerie flickering candlelight -->
+                <path d="M525,230 C525,215 555,215 555,230 L555,260 L525,260 Z" class="flicker-window-1"/>
+                <path d="M530,140 C530,125 550,125 550,140 L550,165 L530,165 Z" class="flicker-window-2"/>
+                <path d="M415,250 C415,240 445,240 445,250 L445,275 L415,275 Z" class="flicker-window-3"/>
+                <path d="M635,245 C635,235 665,235 665,245 L665,270 L635,270 Z" class="flicker-window-1"/>
+                <path d="M705,250 C705,240 730,240 730,250 L730,275 L705,275 Z" class="flicker-window-2"/>
+                <!-- Gnarled tree on right -->
+                <path d="M1020,360 C1010,290 1040,260 1070,220 C1055,230 1040,210 1050,190 C1035,210 1010,220 1020,245 C1005,230 980,220 960,195 C970,220 985,240 1005,265 C980,280 970,315 990,360 Z" fill="#07050f"/>
+                <!-- Foreground Ground Ridge -->
+                <path d="M0,350 Q350,330 700,345 T1200,340 L1200,400 L0,400 Z" fill="#05030a"/>
+            </svg>
+        </div>
+
+        <!-- Drifting Atmospheric Fog Waves -->
+        <div class="fog-container">
+            <div class="fog-wave fog-wave-1"></div>
+            <div class="fog-wave fog-wave-2"></div>
+            <div class="fog-wave fog-wave-3"></div>
+        </div>
+    </div>
+
+    <!-- DECORATIVE GHOST LAYER (Layer 5 - pointer-events: none, aria-hidden: true) -->
+    <div class="ghost-decorations" aria-hidden="true">
+        <!-- WALKING GHOST: Travels across bottom from outside left to outside right -->
+        <div class="walking-ghost-track" id="walking-ghost-track">
+            <div class="walking-ghost-bobber">
+                <svg viewBox="0 0 100 120" class="ghost-svg walking-ghost-svg">
+                    <defs>
+                        <filter id="ghost-glow-walking" x="-20%" y="-20%" width="140%" height="140%">
+                            <feDropShadow dx="0" dy="0" stdDeviation="6" flood-color="#a855f7" flood-opacity="0.8"/>
+                        </filter>
+                    </defs>
+                    <g filter="url(#ghost-glow-walking)">
+                        <!-- Ghost Body -->
+                        <path class="ghost-body-path" d="M50,12 C28,12 18,32 18,65 C18,85 24,96 30,88 C36,80 42,94 50,88 C58,82 64,95 70,88 C76,82 82,92 82,65 C82,32 72,12 50,12 Z" fill="#ffffff" fill-opacity="0.95"/>
+                        <!-- Eerie Glowing Eyes -->
+                        <ellipse cx="38" cy="46" rx="5" ry="7" fill="#120c24"/>
+                        <ellipse cx="62" cy="46" rx="5" ry="7" fill="#120c24"/>
+                        <circle cx="39" cy="44" r="2" fill="#c084fc"/>
+                        <circle cx="63" cy="44" r="2" fill="#c084fc"/>
+                        <!-- Spooky Mouth -->
+                        <ellipse cx="50" cy="62" rx="4" ry="7" fill="#120c24"/>
+                        <!-- Cute Spirit Blush -->
+                        <ellipse cx="28" cy="54" rx="4" ry="2.5" fill="#f472b6" opacity="0.6"/>
+                        <ellipse cx="72" cy="54" rx="4" ry="2.5" fill="#f472b6" opacity="0.6"/>
+                        <!-- Little Float Wisps -->
+                        <circle cx="22" cy="98" r="3" fill="#ffffff" opacity="0.5"/>
+                        <circle cx="50" cy="102" r="2.5" fill="#ffffff" opacity="0.6"/>
+                        <circle cx="78" cy="98" r="3" fill="#ffffff" opacity="0.5"/>
+                    </g>
+                </svg>
+                <div class="walking-ghost-shadow"></div>
+            </div>
+        </div>
+
+        <!-- FLYING GHOST: Glides diagonally across Hero section -->
+        <div class="flying-ghost-container">
+            <svg viewBox="0 0 80 90" class="ghost-svg flying-ghost-svg">
+                <g filter="drop-shadow(0 0 10px rgba(56, 189, 248, 0.75))">
+                    <path d="M40,10 C24,10 16,26 16,52 C16,70 21,78 26,71 C31,64 36,75 40,71 C44,67 48,77 54,71 C59,65 64,74 64,52 C64,26 56,10 40,10 Z" fill="#e0f2fe" fill-opacity="0.88"/>
+                    <ellipse cx="32" cy="38" rx="3.5" ry="5" fill="#0f172a"/>
+                    <ellipse cx="48" cy="38" rx="3.5" ry="5" fill="#0f172a"/>
+                    <ellipse cx="40" cy="52" rx="3" ry="5" fill="#0f172a"/>
+                </g>
+            </svg>
+        </div>
+
+        <!-- BACKGROUND GHOST 1: Translucent drifter near How It Works -->
+        <div class="bg-ghost bg-ghost-1">
+            <svg viewBox="0 0 80 90" class="ghost-svg">
+                <path d="M40,10 C24,10 16,26 16,52 C16,70 21,78 26,71 C31,64 36,75 40,71 C44,67 48,77 54,71 C59,65 64,74 64,52 C64,26 56,10 40,10 Z" fill="#ffffff" fill-opacity="0.3"/>
+                <circle cx="32" cy="38" r="3" fill="#120c24" opacity="0.5"/>
+                <circle cx="48" cy="38" r="3" fill="#120c24" opacity="0.5"/>
+            </svg>
+        </div>
+
+        <!-- BACKGROUND GHOST 2: Translucent drifter near Open Source AI -->
+        <div class="bg-ghost bg-ghost-2">
+            <svg viewBox="0 0 80 90" class="ghost-svg">
+                <path d="M40,10 C24,10 16,26 16,52 C16,70 21,78 26,71 C31,64 36,75 40,71 C44,67 48,77 54,71 C59,65 64,74 64,52 C64,26 56,10 40,10 Z" fill="#c084fc" fill-opacity="0.25"/>
+                <circle cx="32" cy="38" r="3" fill="#120c24" opacity="0.4"/>
+                <circle cx="48" cy="38" r="3" fill="#120c24" opacity="0.4"/>
+            </svg>
+        </div>
+
+        <!-- BACKGROUND GHOST 3: Translucent wanderer in mid-page -->
+        <div class="bg-ghost bg-ghost-3">
+            <svg viewBox="0 0 80 90" class="ghost-svg">
+                <path d="M40,10 C24,10 16,26 16,52 C16,70 21,78 26,71 C31,64 36,75 40,71 C44,67 48,77 54,71 C59,65 64,74 64,52 C64,26 56,10 40,10 Z" fill="#38bdf8" fill-opacity="0.2"/>
+                <circle cx="32" cy="38" r="2.5" fill="#120c24" opacity="0.3"/>
+                <circle cx="48" cy="38" r="2.5" fill="#120c24" opacity="0.3"/>
+            </svg>
+        </div>
+    </div>
+
+    <!-- MAIN CONTENT LAYER (Layer 10) -->
+    <div class="content-wrapper">
+
+        <!-- NAVIGATION BAR -->
+        <header class="site-header" id="navbar">
+            <nav class="nav-container" aria-label="Main Navigation">
+                <a href="#hero" class="brand-logo" aria-label="AI Ghost Story Generator Homepage">
+                    <span class="logo-ghost-icon" aria-hidden="true">
+                        <svg viewBox="0 0 40 44" class="logo-svg">
+                            <path d="M20,4 C11,4 7,12 7,24 C7,33 9,37 12,34 C15,31 17,36 20,34 C23,32 25,37 28,34 C31,31 33,35 33,24 C33,12 29,4 20,4 Z" fill="#ffffff"/>
+                            <circle cx="15" cy="17" r="2" fill="#120c24"/>
+                            <circle cx="25" cy="17" r="2" fill="#120c24"/>
+                            <ellipse cx="20" cy="24" rx="1.5" ry="3" fill="#120c24"/>
+                        </svg>
+                    </span>
+                    <span class="brand-text">AI Ghost Story Generator</span>
+                </a>
+
+                <!-- Mobile Menu Toggle Button -->
+                <button class="mobile-menu-btn" id="mobile-menu-btn" aria-label="Toggle navigation menu" aria-expanded="false" aria-controls="nav-links">
+                    <span class="hamburger-line"></span>
+                    <span class="hamburger-line"></span>
+                    <span class="hamburger-line"></span>
+                </button>
+
+                <!-- Navigation Links -->
+                <ul class="nav-links" id="nav-links">
+                    <li><a href="#hero" class="nav-link">Home</a></li>
+                    <li><a href="#generator" class="nav-link">Generate Story</a></li>
+                    <li><a href="#how-it-works" class="nav-link">How It Works</a></li>
+                    <li><a href="#open-source-ai" class="nav-link">Open-Source AI</a></li>
+                    <li><a href="#about" class="nav-link">About</a></li>
+                    <li>
+                        <a href="#generator" class="nav-cta-btn">Summon Story 👻</a>
+                    </li>
+                </ul>
+            </nav>
+        </header>
+
+        <main id="main-content">
+            <!-- HERO SECTION -->
+            <section class="hero-section" id="hero" aria-labelledby="hero-heading">
+                <div class="hero-grid container">
+                    <div class="hero-content">
+                        <div class="hero-badge">
+                            <span class="pulse-spirit-dot" aria-hidden="true"></span>
+                            <span>Powered by Local Open-Weight AI (Ollama &amp; {{ default_model }})</span>
+                        </div>
+                        <h1 class="hero-title" id="hero-heading">
+                            AI Ghost Story <span class="text-glow-violet">Generator</span>
+                        </h1>
+                        <p class="hero-subtitle">
+                            Enter a World Where Every Shadow Hides a Story...
+                        </p>
+                        <p class="hero-description">
+                            Turn your darkest ideas, haunted places, strange dreams, and forgotten legends into original ghost stories with the power of open-source AI.
+                        </p>
+                        <div class="hero-actions">
+                            <a href="#generator" class="btn btn-primary btn-glow" id="hero-summon-btn">
+                                <span>SUMMON A STORY 👻</span>
+                            </a>
+                            <a href="#how-it-works" class="btn btn-secondary" id="hero-explore-btn">
+                                <span>EXPLORE THE HAUNTED WORLD</span>
+                            </a>
+                        </div>
+                        <div class="hero-stats">
+                            <div class="stat-pill">
+                                <span class="stat-icon" aria-hidden="true">🔮</span>
+                                <span class="stat-text">100% Free &amp; Open Source</span>
+                            </div>
+                            <div class="stat-pill">
+                                <span class="stat-icon" aria-hidden="true">🔒</span>
+                                <span class="stat-text">Private Local Runtime</span>
+                            </div>
+                            <div class="stat-pill">
+                                <span class="stat-icon" aria-hidden="true">⚡</span>
+                                <span class="stat-text">No Paid API Keys Needed</span>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- HERO FLOATING GHOST (Character A) -->
+                    <div class="hero-ghost-stage" aria-hidden="true">
+                        <div class="hero-floating-ghost" id="hero-floating-ghost">
+                            <div class="ghost-aura"></div>
+                            <svg viewBox="0 0 200 240" class="hero-ghost-svg">
+                                <defs>
+                                    <filter id="hero-ghost-filter" x="-20%" y="-20%" width="140%" height="140%">
+                                        <feDropShadow dx="0" dy="0" stdDeviation="10" flood-color="#c084fc" flood-opacity="0.85"/>
+                                        <feDropShadow dx="0" dy="8" stdDeviation="18" flood-color="#7c3aed" flood-opacity="0.45"/>
+                                    </filter>
+                                </defs>
+                                <g filter="url(#hero-ghost-filter)">
+                                    <!-- Flowing Ghost Body with Waving Tail -->
+                                    <path class="hero-ghost-sheet" d="M100,24 C55,24 35,62 35,125 C35,165 47,190 58,175 C69,160 82,185 100,174 C116,163 129,188 141,175 C154,162 165,182 165,125 C165,62 145,24 100,24 Z" fill="#ffffff"/>
+                                    <!-- Animated Pupil Eyes -->
+                                    <g class="ghost-eyes-group">
+                                        <ellipse cx="78" cy="90" rx="9" ry="13" fill="#120c24"/>
+                                        <ellipse cx="122" cy="90" rx="9" ry="13" fill="#120c24"/>
+                                        <!-- Glowing Purple Pupils -->
+                                        <circle class="ghost-pupil" cx="80" cy="88" r="4" fill="#a855f7"/>
+                                        <circle class="ghost-pupil" cx="124" cy="88" r="4" fill="#a855f7"/>
+                                        <!-- Catchlights -->
+                                        <circle cx="76" cy="85" r="2.5" fill="#ffffff"/>
+                                        <circle cx="120" cy="85" r="2.5" fill="#ffffff"/>
+                                    </g>
+                                    <!-- Playful Spooky Mouth -->
+                                    <path class="ghost-mouth" d="M92,122 Q100,134 108,122 Z" fill="#120c24"/>
+                                    <!-- Rosy Spectral Cheeks -->
+                                    <ellipse cx="60" cy="108" rx="8" ry="4" fill="#f472b6" opacity="0.6"/>
+                                    <ellipse cx="140" cy="108" rx="8" ry="4" fill="#f472b6" opacity="0.6"/>
+                                    <!-- Spectral Floating Wisps -->
+                                    <circle cx="45" cy="195" r="5" fill="#ffffff" opacity="0.6"/>
+                                    <circle cx="100" cy="205" r="4.5" fill="#ffffff" opacity="0.7"/>
+                                    <circle cx="155" cy="195" r="5" fill="#ffffff" opacity="0.6"/>
+                                </g>
+                            </svg>
+                            <div class="hero-ghost-ground-shadow"></div>
+                        </div>
+                    </div>
+                </div>
+            </section>
+
+            <!-- STORY GENERATOR SECTION -->
+            <section class="generator-section" id="generator" aria-labelledby="generator-heading">
+                <div class="container">
+                    <div class="section-header text-center">
+                        <span class="section-tag">THE HAUNTED INKWELL</span>
+                        <h2 class="section-title" id="generator-heading">Create Your Own Nightmare</h2>
+                        <p class="section-subtitle">Give us an idea. Let the spirits tell the story.</p>
+                    </div>
+
+                    <div class="generator-card-wrapper">
+                        <!-- INTERACTIVE GHOST (Character E) -->
+                        <div class="interactive-ghost-container" id="interactive-ghost" role="button" tabindex="0" aria-label="Spooky ghost assistant. Click to generate a random spooky idea!">
+                            <div class="ghost-speech-bubble" id="ghost-speech-bubble">
+                                <span>Boo! Ready for a scary story? Click me for an idea!</span>
+                            </div>
+                            <div class="interactive-ghost-body">
+                                <svg viewBox="0 0 90 100" class="mini-ghost-svg">
+                                    <g filter="drop-shadow(0 0 8px rgba(192, 132, 252, 0.8))">
+                                        <path class="mini-body" d="M45,10 C26,10 16,28 16,56 C16,74 21,84 27,77 C33,70 38,82 45,77 C52,72 58,83 63,77 C69,71 74,80 74,56 C74,28 64,10 45,10 Z" fill="#ffffff"/>
+                                        <ellipse class="mini-eye-l" cx="35" cy="40" rx="4" ry="6" fill="#120c24"/>
+                                        <ellipse class="mini-eye-r" cx="55" cy="40" rx="4" ry="6" fill="#120c24"/>
+                                        <circle cx="36" cy="38" r="1.5" fill="#a855f7"/>
+                                        <circle cx="56" cy="38" r="1.5" fill="#a855f7"/>
+                                        <ellipse class="mini-mouth" cx="45" cy="54" rx="3.5" ry="5.5" fill="#120c24"/>
+                                        <ellipse class="mini-blush" cx="26" cy="47" rx="3.5" ry="2" fill="#f472b6" opacity="0.6"/>
+                                        <ellipse class="mini-blush" cx="64" cy="47" rx="3.5" ry="2" fill="#f472b6" opacity="0.6"/>
+                                    </g>
+                                </svg>
+                            </div>
+                        </div>
+
+                        <!-- MAIN GENERATOR FORM CARD -->
+                        <div class="generator-card glass-panel" id="generator-card">
+                            <form id="story-form" class="story-form" novalidate>
+                                <!-- Story Idea Input -->
+                                <div class="form-group">
+                                    <div class="form-label-row">
+                                        <label for="story-idea" class="form-label">
+                                            <span class="label-icon" aria-hidden="true">🕯️</span>
+                                            <span>Your Story Idea, Place, or Nightmare</span>
+                                            <span class="required-indicator" aria-label="Required">*</span>
+                                        </label>
+                                        <button type="button" class="btn-surprise" id="surprise-btn" title="Populate with a random spooky prompt">
+                                            <span aria-hidden="true">🎲</span> Surprise Me 👻
+                                        </button>
+                                    </div>
+                                    <textarea 
+                                        id="story-idea" 
+                                        name="story-idea" 
+                                        class="form-control story-textarea" 
+                                        rows="4" 
+                                        placeholder="Example: An abandoned mansion on the cliff edge where a ghost appears every night at midnight, searching for a music box buried in the floorboards..."
+                                        minlength="3"
+                                        maxlength="2000"
+                                        required
+                                        aria-describedby="idea-help idea-error"
+                                    ></textarea>
+                                    <div class="form-helper-row">
+                                        <span class="helper-text" id="idea-help">Enter a haunted house, mysterious stranger, ancient curse, or dream.</span>
+                                        <span class="char-count" id="idea-char-count">0 / 2000</span>
+                                    </div>
+                                    <div class="input-error-msg" id="idea-error" role="alert" aria-live="polite"></div>
+                                </div>
+
+                                <!-- Story Language Selector -->
+                                <div class="form-group">
+                                    <label class="form-label" id="language-label">
+                                        <span class="label-icon" aria-hidden="true">🌐</span>
+                                        <span>Story Language</span>
+                                    </label>
+                                    <div class="language-grid" role="radiogroup" aria-labelledby="language-label">
+                                        <label class="language-pill active" id="lang-pill-en">
+                                            <input type="radio" name="language" value="English" checked>
+                                            <span class="pill-flag" aria-hidden="true">🇬🇧</span>
+                                            <span class="pill-label">English Story</span>
+                                        </label>
+                                        <label class="language-pill" id="lang-pill-hi">
+                                            <input type="radio" name="language" value="Hindi">
+                                            <span class="pill-flag" aria-hidden="true">🇮🇳</span>
+                                            <span class="pill-label">Hindi Story (हिन्दी)</span>
+                                        </label>
+                                    </div>
+                                </div>
+
+                                <!-- Story Category Selector -->
+                                <div class="form-group">
+                                    <label class="form-label" id="category-label">
+                                        <span class="label-icon" aria-hidden="true">🏚️</span>
+                                        <span>Story Category</span>
+                                    </label>
+                                    <div class="category-grid" role="radiogroup" aria-labelledby="category-label">
+                                        <label class="category-pill active">
+                                            <input type="radio" name="category" value="Haunted House" checked>
+                                            <span class="pill-icon" aria-hidden="true">🏚️</span>
+                                            <span class="pill-label">Haunted House</span>
+                                        </label>
+                                        <label class="category-pill">
+                                            <input type="radio" name="category" value="Ghost Mystery">
+                                            <span class="pill-icon" aria-hidden="true">🔍</span>
+                                            <span class="pill-label">Ghost Mystery</span>
+                                        </label>
+                                        <label class="category-pill">
+                                            <input type="radio" name="category" value="Ancient Folklore">
+                                            <span class="pill-icon" aria-hidden="true">🌲</span>
+                                            <span class="pill-label">Ancient Folklore</span>
+                                        </label>
+                                        <label class="category-pill">
+                                            <input type="radio" name="category" value="Supernatural Horror">
+                                            <span class="pill-icon" aria-hidden="true">👁️</span>
+                                            <span class="pill-label">Supernatural Horror</span>
+                                        </label>
+                                        <label class="category-pill">
+                                            <input type="radio" name="category" value="Halloween Adventure">
+                                            <span class="pill-icon" aria-hidden="true">🎃</span>
+                                            <span class="pill-label">Halloween Adventure</span>
+                                        </label>
+                                        <label class="category-pill">
+                                            <input type="radio" name="category" value="Emotional Ghost Story">
+                                            <span class="pill-icon" aria-hidden="true">💔</span>
+                                            <span class="pill-label">Emotional Ghost Story</span>
+                                        </label>
+                                    </div>
+                                </div>
+
+                                <!-- Story Length & Optional Title Row -->
+                                <div class="form-row-dual">
+                                    <!-- Story Length -->
+                                    <div class="form-group flex-1">
+                                        <label class="form-label" id="length-label">
+                                            <span class="label-icon" aria-hidden="true">📜</span>
+                                            <span>Story Length</span>
+                                        </label>
+                                        <div class="length-selector" role="radiogroup" aria-labelledby="length-label">
+                                            <label class="length-option">
+                                                <input type="radio" name="length" value="Short">
+                                                <span class="length-badge">Short</span>
+                                                <span class="length-desc">~200 words</span>
+                                            </label>
+                                            <label class="length-option active">
+                                                <input type="radio" name="length" value="Medium" checked>
+                                                <span class="length-badge">Medium</span>
+                                                <span class="length-desc">~400 words</span>
+                                            </label>
+                                            <label class="length-option">
+                                                <input type="radio" name="length" value="Long">
+                                                <span class="length-badge">Long</span>
+                                                <span class="length-desc">~700 words</span>
+                                            </label>
+                                        </div>
+                                    </div>
+
+                                    <!-- Optional Custom Title -->
+                                    <div class="form-group flex-1">
+                                        <label for="custom-title" class="form-label">
+                                            <span class="label-icon" aria-hidden="true">✍️</span>
+                                            <span>Custom Title (Optional)</span>
+                                        </label>
+                                        <input 
+                                            type="text" 
+                                            id="custom-title" 
+                                            name="custom-title" 
+                                            class="form-control" 
+                                            placeholder="Leave blank for AI to generate a title..."
+                                            maxlength="120"
+                                        >
+                                        <span class="helper-text">If left blank, the spirits will craft an original title.</span>
+                                    </div>
+                                </div>
+
+                                <!-- Submit Action Button -->
+                                <div class="form-actions">
+                                    <button type="submit" class="btn btn-primary btn-generate btn-block" id="generate-btn">
+                                        <span class="btn-ghost-icon" aria-hidden="true">👻</span>
+                                        <span class="btn-text">GENERATE MY GHOST STORY</span>
+                                        <span class="btn-sparkle" aria-hidden="true">✨</span>
+                                    </button>
+                                </div>
+                            </form>
+                        </div>
+
+                        <!-- MAGICAL LOADING STATE (Section 10) -->
+                        <div class="loading-panel glass-panel hidden" id="loading-panel" aria-live="assertive" role="status">
+                            <div class="loading-arcane-circle" aria-hidden="true">
+                                <div class="runes-ring ring-outer"></div>
+                                <div class="runes-ring ring-inner"></div>
+                                <div class="summoning-ghost">
+                                    <svg viewBox="0 0 100 110" class="ghost-svg">
+                                        <g filter="drop-shadow(0 0 14px rgba(168, 85, 247, 0.95))">
+                                            <path d="M50,15 C30,15 20,35 20,65 C20,85 26,95 32,88 C38,81 44,93 50,88 C56,83 62,94 68,88 C74,82 80,91 80,65 C80,35 70,15 50,15 Z" fill="#ffffff"/>
+                                            <ellipse cx="38" cy="45" rx="5" ry="7" fill="#120c24"/>
+                                            <ellipse cx="62" cy="45" rx="5" ry="7" fill="#120c24"/>
+                                            <circle cx="39" cy="43" r="2" fill="#c084fc"/>
+                                            <circle cx="63" cy="43" r="2" fill="#c084fc"/>
+                                            <ellipse cx="50" cy="62" rx="4" ry="6" fill="#120c24"/>
+                                        </g>
+                                    </svg>
+                                </div>
+                            </div>
+                            <h3 class="loading-title">The spirits are writing your story<span class="loading-dots">...</span></h3>
+                            <p class="loading-subtitle">Gather your courage. Something is coming from the dark...</p>
+                            <div class="loading-progress-bar">
+                                <div class="progress-glow-track"></div>
+                            </div>
+                        </div>
+
+                        <!-- ERROR DISPLAY BANNER -->
+                        <div class="error-banner glass-panel hidden" id="error-banner" role="alert" aria-live="polite">
+                            <div class="error-icon" aria-hidden="true">⚠️</div>
+                            <div class="error-body">
+                                <h4 class="error-title" id="error-title">Spectral Disturbance Detected</h4>
+                                <p class="error-message" id="error-message"></p>
+                                <div class="error-troubleshooting hidden" id="error-troubleshooting">
+                                    <ul id="troubleshooting-steps"></ul>
+                                </div>
+                            </div>
+                            <button type="button" class="btn-close-error" id="close-error-btn" aria-label="Dismiss error notification">✕</button>
+                        </div>
+
+                        <!-- GENERATED STORY RESULT CARD (Section 11) -->
+                        <div class="story-result-card glass-panel hidden" id="result-card" aria-live="polite">
+                            <div class="result-header">
+                                <div class="result-meta">
+                                    <span class="result-badge category-badge" id="result-category">Haunted House</span>
+                                    <span class="result-badge length-badge" id="result-length">Medium</span>
+                                    <span class="result-badge model-badge" id="result-model">Ollama (llama3.2:3b)</span>
+                                </div>
+                                <div class="result-ghost-icon" aria-hidden="true">
+                                    <svg viewBox="0 0 50 60" class="mini-ghost-svg">
+                                        <path d="M25,8 C14,8 9,18 9,33 C9,44 12,49 16,45 C20,41 22,48 25,45 C28,42 31,48 34,45 C38,42 41,47 41,33 C41,18 36,8 25,8 Z" fill="#ffffff" opacity="0.85"/>
+                                        <circle cx="19" cy="23" r="2" fill="#120c24"/>
+                                        <circle cx="31" cy="23" r="2" fill="#120c24"/>
+                                        <ellipse cx="25" cy="31" rx="1.5" ry="3" fill="#120c24"/>
+                                    </svg>
+                                </div>
+                            </div>
+
+                            <h3 class="result-story-title" id="result-title">Title Loading...</h3>
+
+                            <!-- VOICE NARRATION PLAYER & CONTROLS (Section 1 - 5) -->
+                            <div class="voice-narration-player" id="voice-narration-player">
+                                <div class="narration-player-header">
+                                    <div class="narrator-badge">
+                                        <div class="narrator-ghost-icon" aria-hidden="true">
+                                            <svg viewBox="0 0 40 44" class="narrator-mini-ghost">
+                                                <path d="M20,4 C11,4 7,12 7,24 C7,33 9,37 12,34 C15,31 17,36 20,34 C23,32 25,37 28,34 C31,31 33,35 33,24 C33,12 29,4 20,4 Z" fill="#ffffff"/>
+                                                <circle cx="15" cy="17" r="2" fill="#120c24"/>
+                                                <circle cx="25" cy="17" r="2" fill="#120c24"/>
+                                                <ellipse cx="20" cy="24" rx="1.5" ry="3" fill="#120c24"/>
+                                            </svg>
+                                        </div>
+                                        <div class="narrator-info">
+                                            <span class="narrator-title">Horror Voice Narration</span>
+                                            <span class="narrator-status" id="narration-status">Ready to summon voice...</span>
+                                        </div>
+                                    </div>
+
+                                    <!-- Animated Sound-Wave Visualizer -->
+                                    <div class="sound-wave-bars" id="sound-wave-bars" aria-hidden="true">
+                                        <span class="bar bar-1"></span>
+                                        <span class="bar bar-2"></span>
+                                        <span class="bar bar-3"></span>
+                                        <span class="bar bar-4"></span>
+                                        <span class="bar bar-5"></span>
+                                        <span class="bar bar-6"></span>
+                                        <span class="bar bar-7"></span>
+                                    </div>
+                                </div>
+
+                                <!-- Narration Progress Indicator -->
+                                <div class="narration-progress-track" aria-hidden="true">
+                                    <div class="narration-progress-fill" id="narration-progress-fill"></div>
+                                </div>
+
+                                <!-- Main Audio Control Buttons -->
+                                <div class="narration-controls-row">
+                                    <div class="playback-buttons-group">
+                                        <button type="button" class="btn-voice btn-voice-play" id="voice-play-btn" aria-label="Listen to Story">
+                                            <span class="voice-btn-icon" aria-hidden="true">🔊</span>
+                                            <span class="voice-btn-text">Listen to Story</span>
+                                        </button>
+                                        <button type="button" class="btn-voice btn-voice-pause hidden" id="voice-pause-btn" aria-label="Pause narration">
+                                            <span class="voice-btn-icon" aria-hidden="true">⏸️</span>
+                                            <span class="voice-btn-text">Pause</span>
+                                        </button>
+                                        <button type="button" class="btn-voice btn-voice-resume hidden" id="voice-resume-btn" aria-label="Resume narration">
+                                            <span class="voice-btn-icon" aria-hidden="true">▶️</span>
+                                            <span class="voice-btn-text">Resume</span>
+                                        </button>
+                                        <button type="button" class="btn-voice btn-voice-stop hidden" id="voice-stop-btn" aria-label="Stop narration">
+                                            <span class="voice-btn-icon" aria-hidden="true">⏹️</span>
+                                            <span class="voice-btn-text">Stop</span>
+                                        </button>
+                                        <button type="button" class="btn-voice btn-voice-replay hidden" id="voice-replay-btn" aria-label="Replay story">
+                                            <span class="voice-btn-icon" aria-hidden="true">🔁</span>
+                                            <span class="voice-btn-text">Replay</span>
+                                        </button>
+                                    </div>
+
+                                    <!-- Atmosphere Audio Control (Web Audio Ambient Wind & Drone) -->
+                                    <div class="atmosphere-control-group">
+                                        <button type="button" class="btn-atmosphere" id="atmosphere-toggle-btn" aria-pressed="false" title="Toggle eerie background ambient wind and drone">
+                                            <span class="atmosphere-icon" aria-hidden="true">👻</span>
+                                            <span class="atmosphere-text" id="atmosphere-btn-text">Haunted Atmosphere: OFF</span>
+                                        </button>
+                                        <div class="atmosphere-volume-wrapper" id="atmosphere-volume-wrapper" title="Ambience Volume">
+                                            <span class="vol-icon" aria-hidden="true">🎚️</span>
+                                            <input type="range" id="atmosphere-volume-slider" min="0" max="100" value="20" aria-label="Ambience volume" class="volume-slider">
+                                            <span class="vol-percent" id="atmosphere-volume-label">20%</span>
+                                        </div>
+                                    </div>
+                                </div>
+
+                                <!-- Auto-Play Setting & Settings Toggle Bar -->
+                                <div class="narration-settings-bar">
+                                    <label class="autoplay-setting-label">
+                                        <input type="checkbox" id="autoplay-narration-checkbox" class="ghost-checkbox">
+                                        <span class="checkbox-custom" aria-hidden="true"></span>
+                                        <span class="setting-text">Auto-play narration after generation</span>
+                                    </label>
+                                    
+                                    <button type="button" class="btn-toggle-settings" id="toggle-voice-settings-btn" aria-expanded="false" aria-controls="voice-settings-panel">
+                                        <span class="settings-icon" aria-hidden="true">⚙️</span>
+                                        <span class="settings-toggle-text">Voice Settings</span>
+                                        <span class="settings-chevron" aria-hidden="true">▼</span>
+                                    </button>
+                                </div>
+
+                                <!-- Collapsible Scary Voice Settings Panel -->
+                                <div class="voice-settings-panel hidden" id="voice-settings-panel">
+                                    <div class="voice-settings-grid">
+                                        <!-- Language Setting -->
+                                        <div class="setting-item">
+                                            <label for="voice-language-select" class="setting-label">Language</label>
+                                            <select id="voice-language-select" class="form-control select-ghost">
+                                                <option value="auto" selected>✨ Automatically use story language</option>
+                                                <option value="en">🇬🇧 English</option>
+                                                <option value="hi">🇮🇳 Hindi (हिन्दी)</option>
+                                            </select>
+                                        </div>
+
+                                        <!-- Voice Selection -->
+                                        <div class="setting-item">
+                                            <label for="voice-select" class="setting-label">Voice</label>
+                                            <select id="voice-select" class="form-control select-ghost">
+                                                <option value="">Detecting available voices...</option>
+                                            </select>
+                                            <span class="setting-subtext" id="voice-availability-note">Listing available browser voices.</span>
+                                        </div>
+
+                                        <!-- Narration Speed -->
+                                        <div class="setting-item">
+                                            <label class="setting-label" id="speed-label">Narration Speed</label>
+                                            <div class="voice-pills-row" role="radiogroup" aria-labelledby="speed-label">
+                                                <label class="voice-pill active">
+                                                    <input type="radio" name="narration-speed" value="0.82" checked>
+                                                    <span>Slow (Horror)</span>
+                                                </label>
+                                                <label class="voice-pill">
+                                                    <input type="radio" name="narration-speed" value="1.0">
+                                                    <span>Normal</span>
+                                                </label>
+                                                <label class="voice-pill">
+                                                    <input type="radio" name="narration-speed" value="1.2">
+                                                    <span>Fast</span>
+                                                </label>
+                                            </div>
+                                        </div>
+
+                                        <!-- Voice Pitch -->
+                                        <div class="setting-item">
+                                            <label class="setting-label" id="pitch-label">Pitch</label>
+                                            <div class="voice-pills-row" role="radiogroup" aria-labelledby="pitch-label">
+                                                <label class="voice-pill active">
+                                                    <input type="radio" name="voice-pitch" value="0.8" checked>
+                                                    <span>Low (Ominous)</span>
+                                                </label>
+                                                <label class="voice-pill">
+                                                    <input type="radio" name="voice-pitch" value="1.0">
+                                                    <span>Normal</span>
+                                                </label>
+                                                <label class="voice-pill">
+                                                    <input type="radio" name="voice-pitch" value="1.25">
+                                                    <span>High (Ghostly)</span>
+                                                </label>
+                                            </div>
+                                        </div>
+                                    </div>
+
+                                    <div class="voice-disclaimer">
+                                        <span class="info-icon" aria-hidden="true">ℹ️</span>
+                                        <span>Browser text-to-speech voices vary across operating systems. For English, deep natural voices are preferred; for Hindi, Devanagari speech synthesizers (like Google हिन्दी or Microsoft Kalpana/Hemant) are automatically prioritized when installed.</span>
+                                    </div>
+                                </div>
+                            </div>
+
+                            <div class="story-divider" aria-hidden="true">
+                                <span class="divider-line"></span>
+                                <span class="divider-rune">❦</span>
+                                <span class="divider-line"></span>
+                            </div>
+
+                            <div class="result-story-content" id="result-story">
+                                <!-- Safe text will be populated via textContent in JS -->
+                            </div>
+
+                            <div class="result-footer">
+                                <div class="result-actions">
+                                    <button type="button" class="btn btn-secondary btn-action" id="copy-story-btn">
+                                        <span class="action-icon" aria-hidden="true">📋</span>
+                                        <span class="action-text">Copy Story</span>
+                                    </button>
+                                    <button type="button" class="btn btn-secondary btn-action" id="download-story-btn">
+                                        <span class="action-icon" aria-hidden="true">💾</span>
+                                        <span class="action-text">Download as TXT</span>
+                                    </button>
+                                    <button type="button" class="btn btn-primary btn-action" id="generate-another-btn">
+                                        <span class="action-icon" aria-hidden="true">🔄</span>
+                                        <span class="action-text">Generate Another</span>
+                                    </button>
+                                </div>
+                                <div class="copy-toast hidden" id="copy-toast" role="status" aria-live="polite">
+                                    ✨ Story copied successfully!
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </section>
+
+            <!-- HOW IT WORKS SECTION (Section 12) -->
+            <section class="how-it-works-section" id="how-it-works" aria-labelledby="how-heading">
+                <div class="container">
+                    <div class="section-header text-center">
+                        <span class="section-tag">THREE STEPS INTO THE SHADOWS</span>
+                        <h2 class="section-title" id="how-heading">How It Works</h2>
+                        <p class="section-subtitle">Bridging the veil between imagination and artificial intelligence.</p>
+                    </div>
+
+                    <div class="steps-grid">
+                        <div class="step-card glass-panel">
+                            <div class="step-number" aria-hidden="true">01</div>
+                            <div class="step-icon-wrap" aria-hidden="true">
+                                <span class="step-emoji">✍️</span>
+                            </div>
+                            <h3 class="step-title">Share Your Idea</h3>
+                            <p class="step-desc">
+                                Describe a haunted location, mysterious incident, ghostly character, childhood nightmare, or unsolved riddle.
+                            </p>
+                            <div class="step-card-ghost" aria-hidden="true">👻</div>
+                        </div>
+
+                        <div class="step-card glass-panel">
+                            <div class="step-number" aria-hidden="true">02</div>
+                            <div class="step-icon-wrap" aria-hidden="true">
+                                <span class="step-emoji">🕯️</span>
+                            </div>
+                            <h3 class="step-title">Choose Your Horror Style</h3>
+                            <p class="step-desc">
+                                Pick your preferred story category (Haunted House, Ancient Folklore, Ghost Mystery, etc.) and narrative length.
+                            </p>
+                            <div class="step-card-ghost" aria-hidden="true">🦇</div>
+                        </div>
+
+                        <div class="step-card glass-panel">
+                            <div class="step-number" aria-hidden="true">03</div>
+                            <div class="step-icon-wrap" aria-hidden="true">
+                                <span class="step-emoji">🔮</span>
+                            </div>
+                            <h3 class="step-title">Summon Your Story</h3>
+                            <p class="step-desc">
+                                Let the open-weight AI model transform your imagination into a ghost story with title, suspense, and chilling conclusion.
+                            </p>
+                            <div class="step-card-ghost" aria-hidden="true">✨</div>
+                        </div>
+                    </div>
+                </div>
+            </section>
+
+            <!-- OPEN-SOURCE AI SECTION (Section 13) -->
+            <section class="open-source-section" id="open-source-ai" aria-labelledby="ai-heading">
+                <div class="container">
+                    <div class="section-header text-center">
+                        <span class="section-tag">EMPOWERED BY OPEN WEIGHTS</span>
+                        <h2 class="section-title" id="ai-heading">Powered by Open-Weight AI</h2>
+                        <p class="section-subtitle">
+                            This project demonstrates how open-weight AI models can power creative applications while giving developers greater control over their AI runtime.
+                        </p>
+                    </div>
+
+                    <div class="benefits-grid">
+                        <div class="benefit-card glass-panel">
+                            <div class="benefit-icon" aria-hidden="true">💻</div>
+                            <h3 class="benefit-title">Local Execution with Ollama</h3>
+                            <p class="benefit-desc">
+                                Runs on your own hardware using Ollama and Meta's <code>llama3.2:3b</code>. No recurring subscriptions or third-party service locks.
+                            </p>
+                        </div>
+
+                        <div class="benefit-card glass-panel">
+                            <div class="benefit-icon" aria-hidden="true">🪙</div>
+                            <h3 class="benefit-title">Zero API Costs</h3>
+                            <p class="benefit-desc">
+                                Avoid paid AI APIs for local story generation. Generate infinite eerie tales without credit card charges or token billing meters.
+                            </p>
+                        </div>
+
+                        <div class="benefit-card glass-panel">
+                            <div class="benefit-icon" aria-hidden="true">🛡️</div>
+                            <h3 class="benefit-title">Device-Level Privacy</h3>
+                            <p class="benefit-desc">
+                                When running locally via Ollama, your prompts and stories never leave your machine. Privacy depends on your deployment configuration.
+                            </p>
+                        </div>
+
+                        <div class="benefit-card glass-panel">
+                            <div class="benefit-icon" aria-hidden="true">🔍</div>
+                            <h3 class="benefit-title">Inspectable &amp; Hackable</h3>
+                            <p class="benefit-desc">
+                                Fully open source under the MIT License. Inspect the Flask backend, tweak prompts, adjust model temperature, and build new categories.
+                            </p>
+                        </div>
+
+                        <div class="benefit-card glass-panel">
+                            <div class="benefit-icon" aria-hidden="true">⚡</div>
+                            <h3 class="benefit-title">Customizable Prompts</h3>
+                            <p class="benefit-desc">
+                                Easily fine-tune system prompts, narrative pacing, and tone guidelines to specialize in urban legends, cosmic horror, or gothic lore.
+                            </p>
+                        </div>
+
+                        <div class="benefit-card glass-panel">
+                            <div class="benefit-icon" aria-hidden="true">🎓</div>
+                            <h3 class="benefit-title">Educational Hackathon Ready</h3>
+                            <p class="benefit-desc">
+                                Perfect reference architecture for students, makers, and hackathon competitors learning how to connect web frontends with local LLMs.
+                            </p>
+                        </div>
+                    </div>
+
+                    <div class="prerequisite-box glass-panel text-center">
+                        <span class="prereq-badge">Setup Note</span>
+                        <p class="prereq-text">
+                            <strong>Prerequisite:</strong> Open-weight models must be downloaded locally prior to generation. Run <code>ollama pull llama3.2:3b</code> on your system before summoning stories.
+                        </p>
+                    </div>
+                </div>
+            </section>
+
+            <!-- ABOUT SECTION (Section 14) -->
+            <section class="about-section" id="about" aria-labelledby="about-heading">
+                <div class="container">
+                    <div class="about-card glass-panel">
+                        <div class="about-grid">
+                            <div class="about-text-col">
+                                <span class="section-tag">THE LORE BEHIND THE CODE</span>
+                                <h2 class="section-title" id="about-heading">Every Ghost Has a Story...</h2>
+                                <p class="about-desc">
+                                    AI Ghost Story Generator is an open-source creative AI application that transforms simple ideas into imaginative ghost stories. Built using Python, Flask, and Ollama, it combines interactive web design, CSS animations, and open-weight AI to create an engaging storytelling experience.
+                                </p>
+                                <p class="about-desc">
+                                    Whether you are a developer learning local AI orchestration, a horror enthusiast testing spooky prompts, or a creative writer hunting for inspiration, this project proves that immersive experiences do not require proprietary cloud APIs.
+                                </p>
+                                <div class="about-contribute-box">
+                                    <h4 class="contribute-title">How Developers Can Extend This Project:</h4>
+                                    <ul class="contribute-list">
+                                        <li>✨ Add new horror sub-genres (Cosmic Horror, Folk Horror, Cyberpunk Ghosts).</li>
+                                        <li>🔊 Integrate open-source Text-to-Speech (TTS) for eerie narration audio.</li>
+                                        <li>🎨 Create new CSS animated spectral characters and ambient weather states.</li>
+                                        <li>📦 Swap models easily (e.g. <code>qwen2.5:3b</code>, <code>mistral:7b</code>, <code>phi3:mini</code>).</li>
+                                    </ul>
+                                </div>
+                            </div>
+                            <div class="about-visual-col" aria-hidden="true">
+                                <div class="about-ghost-circle">
+                                    <svg viewBox="0 0 160 180" class="about-ghost-svg">
+                                        <g filter="drop-shadow(0 0 16px rgba(168, 85, 247, 0.7))">
+                                            <path d="M80,20 C45,20 30,50 30,100 C30,132 40,150 49,138 C58,126 67,146 80,138 C93,130 102,148 111,138 C120,128 130,144 130,100 C130,50 115,20 80,20 Z" fill="#ffffff" opacity="0.95"/>
+                                            <ellipse cx="62" cy="70" rx="7" ry="10" fill="#120c24"/>
+                                            <ellipse cx="98" cy="70" rx="7" ry="10" fill="#120c24"/>
+                                            <circle cx="64" cy="68" r="3" fill="#a855f7"/>
+                                            <circle cx="100" cy="68" r="3" fill="#a855f7"/>
+                                            <ellipse cx="80" cy="94" rx="6" ry="9" fill="#120c24"/>
+                                            <ellipse cx="48" cy="85" rx="6" ry="3" fill="#f472b6" opacity="0.6"/>
+                                            <ellipse cx="112" cy="85" rx="6" ry="3" fill="#f472b6" opacity="0.6"/>
+                                        </g>
+                                    </svg>
+                                    <div class="spell-ring"></div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </section>
+        </main>
+
+        <!-- FOOTER (Section 15) -->
+        <footer class="site-footer" id="footer">
+            <div class="footer-ghost-track" aria-hidden="true">
+                <div class="footer-drifting-ghost">
+                    <svg viewBox="0 0 60 70" class="mini-ghost-svg">
+                        <path d="M30,10 C18,10 12,22 12,42 C12,56 16,63 20,58 C24,53 27,61 30,58 C33,55 36,62 40,58 C44,54 48,60 48,42 C48,22 42,10 30,10 Z" fill="#ffffff" opacity="0.7"/>
+                        <circle cx="24" cy="30" r="2.5" fill="#120c24"/>
+                        <circle cx="36" cy="30" r="2.5" fill="#120c24"/>
+                    </svg>
+                </div>
+            </div>
+
+            <div class="container footer-content">
+                <div class="footer-brand">
+                    <a href="#hero" class="footer-logo">
+                        <span class="logo-emoji" aria-hidden="true">👻</span>
+                        <span class="footer-title">AI Ghost Story Generator</span>
+                    </a>
+                    <p class="footer-tagline">
+                        "Turn Your Imagination into Terrifying Ghost Stories!"
+                    </p>
+                    <p class="footer-open-source-note">
+                        Open-source creative AI application powered by Flask and local Ollama.
+                    </p>
+                </div>
+
+                <div class="footer-links-group">
+                    <h5 class="footer-col-title">Navigation</h5>
+                    <ul class="footer-links">
+                        <li><a href="#hero">Home</a></li>
+                        <li><a href="#generator">Summon Story</a></li>
+                        <li><a href="#how-it-works">How It Works</a></li>
+                        <li><a href="#open-source-ai">Open-Source AI</a></li>
+                        <li><a href="#about">About Project</a></li>
+                    </ul>
+                </div>
+
+                <div class="footer-links-group">
+                    <h5 class="footer-col-title">Resources</h5>
+                    <ul class="footer-links">
+                        <li><a href="https://ollama.com" target="_blank" rel="noopener noreferrer">Ollama Runtime ↗</a></li>
+                        <li><a href="https://ollama.com/library/llama3.2" target="_blank" rel="noopener noreferrer">Llama 3.2 Model ↗</a></li>
+                        <li><a href="#open-source-ai">Privacy &amp; Architecture</a></li>
+                        <li><a href="https://github.com/anubhav9236/ai-ghost-story-generator" target="_blank" rel="noopener noreferrer">GitHub Repository ↗</a></li>
+                    </ul>
+                </div>
+            </div>
+
+            <div class="footer-bottom">
+                <div class="container footer-bottom-flex">
+                    <p class="copyright-text">
+                        &copy; <span id="current-year">2026</span> AI Ghost Story Generator. Released under the MIT License.
+                    </p>
+                    <p class="footer-credit">
+                        Crafted for the open-source community with open-weight AI.
+                    </p>
+                </div>
+            </div>
+        </footer>
+    </div>
+
+    <!-- Scripts -->
+    <script src="{{ url_for('static', filename='js/script.js') }}"></script>
+</body>
+</html>
