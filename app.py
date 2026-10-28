@@ -1,12 +1,16 @@
 """
 AI Ghost Story Generator - Flask Backend
-Connects to local open-weight LLMs via Ollama to generate spine-chilling ghost stories.
+Production-ready serverless backend powered by Google Gemini API.
+Generates spine-chilling horror stories in English and Hindi with custom tones,
+length controls, title parsing, and in-memory rate limiting.
 """
 
 import os
 import sys
 import re
-import requests
+import time
+from collections import defaultdict
+from threading import Lock
 from flask import Flask, render_template, request, jsonify
 from dotenv import load_dotenv
 
@@ -16,20 +20,18 @@ if hasattr(sys.stdout, "reconfigure"):
 if hasattr(sys.stderr, "reconfigure"):
     sys.stderr.reconfigure(encoding="utf-8", errors="replace")
 
-# Load environment variables from .env if present
+# Load environment variables from .env if present (local development)
 load_dotenv()
 
 app = Flask(__name__)
 
 # Configuration
-OLLAMA_URL = os.environ.get("OLLAMA_URL", "http://127.0.0.1:11434").rstrip("/")
-OLLAMA_MODEL = os.environ.get("OLLAMA_MODEL", "llama3.2:3b")
-REQUEST_TIMEOUT = int(os.environ.get("REQUEST_TIMEOUT", 180))
+GEMINI_MODEL = os.environ.get("GEMINI_MODEL", "gemini-2.5-flash")
 
 LENGTH_TOKEN_LIMITS = {
-    "Short": 260,
-    "Medium": 500,
-    "Long": 850,
+    "Short": 350,
+    "Medium": 650,
+    "Long": 1100,
 }
 
 ALLOWED_LANGUAGES = {"English", "Hindi"}
@@ -58,9 +60,41 @@ CATEGORY_TONES = {
     "Emotional Ghost Story": "Focus on poignant sorrow, unresolved longing, bittersweet apparitions, lingering memories, and touching the boundary between love and death.",
 }
 
+# In-Memory Rate Limiting: 10 requests per minute per IP address
+# Note: In a serverless environment (such as Vercel Functions), in-memory rate limiting
+# enforces limits per container instance. For globally persistent distributed rate limiting,
+# an external low-latency store such as Upstash Redis or Vercel KV would be required.
+RATE_LIMIT_WINDOW_SECONDS = 60
+RATE_LIMIT_MAX_REQUESTS = 10
+_rate_limit_records = defaultdict(list)
+_rate_limit_lock = Lock()
+
+
+def is_rate_limited(client_ip: str) -> bool:
+    """Check if the client IP has exceeded the allowed request limit within the sliding window."""
+    now = time.time()
+    with _rate_limit_lock:
+        timestamps = _rate_limit_records[client_ip]
+        # Purge timestamps outside the active window
+        valid_timestamps = [ts for ts in timestamps if now - ts < RATE_LIMIT_WINDOW_SECONDS]
+        if len(valid_timestamps) >= RATE_LIMIT_MAX_REQUESTS:
+            _rate_limit_records[client_ip] = valid_timestamps
+            return True
+        valid_timestamps.append(now)
+        _rate_limit_records[client_ip] = valid_timestamps
+        return False
+
+
+def get_client_ip() -> str:
+    """Extract client IP securely from request headers (handling proxies/Vercel edge)."""
+    forwarded_for = request.headers.get("X-Forwarded-For")
+    if forwarded_for:
+        return forwarded_for.split(",")[0].strip()
+    return request.remote_addr or "127.0.0.1"
+
 
 def construct_prompt(idea: str, category: str, length: str, custom_title: str = None, language: str = "English") -> str:
-    """Build a structured prompt for Ollama to generate an engaging ghost story in English or Hindi."""
+    """Build a structured prompt for Google Gemini to generate an engaging ghost story in English or Hindi."""
     tone_guide = CATEGORY_TONES.get(category, "Evoke rich supernatural dread and atmosphere.")
     length_guide = ALLOWED_LENGTHS.get(length, ALLOWED_LENGTHS["Medium"])
 
@@ -130,7 +164,7 @@ Story:
 
 
 def parse_ai_response(raw_text: str, custom_title: str = None, fallback_category: str = "Ghost Story") -> tuple[str, str]:
-    """Parse the raw Ollama response into a clean title and story body (supports English and Hindi markers)."""
+    """Parse the raw AI response into a clean title and story body (supports English and Hindi markers)."""
     raw_text = raw_text.strip()
 
     title = custom_title.strip() if custom_title else ""
@@ -172,47 +206,31 @@ def parse_ai_response(raw_text: str, custom_title: str = None, fallback_category
 @app.route("/")
 def index():
     """Render the main horror-themed UI."""
-    return render_template("index.html", default_model=OLLAMA_MODEL)
+    return render_template("index.html", default_model=GEMINI_MODEL)
 
 
 @app.route("/health", methods=["GET"])
 def health():
-    """Health check endpoint reporting Flask and Ollama status."""
-    ollama_connected = False
-    model_available = False
-
-    try:
-        resp = requests.get(f"{OLLAMA_URL}/api/tags", timeout=4)
-        if resp.status_code == 200:
-            ollama_connected = True
-            models = resp.json().get("models", [])
-            model_names = [m.get("name", "") for m in models]
-            # Match model name or prefix (e.g. llama3.2:3b or llama3.2:latest)
-            model_available = any(
-                OLLAMA_MODEL == name or name.startswith(f"{OLLAMA_MODEL}:") or OLLAMA_MODEL.startswith(name.split(":")[0])
-                for name in model_names
-            )
-    except Exception:
-        ollama_connected = False
-        model_available = False
-
+    """Health check endpoint reporting Flask status and Gemini API configuration."""
+    api_key_configured = bool(os.environ.get("GEMINI_API_KEY", "").strip())
     return jsonify({
         "status": "ok",
         "flask": "healthy",
-        "ollama": {
-            "connected": ollama_connected,
-            "url": OLLAMA_URL,
-            "configured_model": OLLAMA_MODEL,
-            "model_available": model_available
-        }
+        "provider": "google-gemini",
+        "configured_model": GEMINI_MODEL,
+        "api_key_configured": api_key_configured
     }), 200
 
 
 @app.route("/generate", methods=["POST"])
 def generate():
-    """Generate a ghost story using local Ollama model."""
+    """Generate a ghost story using Google Gemini API."""
     if not request.is_json:
-        return jsonify({"success": False, "error": "Request body must be JSON."}), 400
+        return jsonify({
+            "success": False,
+            "error": "Request body must be JSON.",
+            "code": "INVALID_JSON"
+        }), 400
 
     data = request.get_json() or {}
 
@@ -225,27 +243,59 @@ def generate():
     if language not in ALLOWED_LANGUAGES:
         language = "English"
 
-    # Input validation
+    # Input validation and size limits
     if not idea or len(idea) < 3:
-        return jsonify({"success": False, "error": "Please provide a story idea (at least 3 characters)."}), 400
+        return jsonify({
+            "success": False,
+            "error": "Please provide a story idea (at least 3 characters).",
+            "code": "INPUT_TOO_SHORT"
+        }), 400
 
     if len(idea) > 2000:
-        return jsonify({"success": False, "error": "Story idea exceeds maximum allowed length of 2000 characters."}), 400
+        return jsonify({
+            "success": False,
+            "error": "Story idea exceeds maximum allowed length of 2000 characters.",
+            "code": "INPUT_TOO_LONG"
+        }), 400
 
     if category not in ALLOWED_CATEGORIES:
         return jsonify({
             "success": False,
-            "error": f"Invalid category. Allowed categories: {', '.join(sorted(ALLOWED_CATEGORIES))}"
+            "error": f"Invalid category. Allowed categories: {', '.join(sorted(ALLOWED_CATEGORIES))}",
+            "code": "INVALID_CATEGORY"
         }), 400
 
     if length not in ALLOWED_LENGTHS:
         return jsonify({
             "success": False,
-            "error": f"Invalid length. Allowed lengths: {', '.join(sorted(ALLOWED_LENGTHS))}"
+            "error": f"Invalid length. Allowed lengths: {', '.join(sorted(ALLOWED_LENGTHS))}",
+            "code": "INVALID_LENGTH"
         }), 400
 
     if custom_title and len(custom_title) > 120:
-        return jsonify({"success": False, "error": "Custom title cannot exceed 120 characters."}), 400
+        return jsonify({
+            "success": False,
+            "error": "Custom title cannot exceed 120 characters.",
+            "code": "TITLE_TOO_LONG"
+        }), 400
+
+    # Rate limiting abuse prevention
+    client_ip = get_client_ip()
+    if is_rate_limited(client_ip):
+        return jsonify({
+            "success": False,
+            "error": "Too many summoning rituals in a short time. Please wait a moment before trying again.",
+            "code": "RATE_LIMITED"
+        }), 429
+
+    # Verify server-side API key configuration
+    api_key = os.environ.get("GEMINI_API_KEY", "").strip()
+    if not api_key:
+        return jsonify({
+            "success": False,
+            "error": "The ghost realm is unconfigured. GEMINI_API_KEY is not set on the server. Please configure it in your Vercel Environment Variables.",
+            "code": "MISSING_API_KEY"
+        }), 500
 
     prompt = construct_prompt(
         idea=idea,
@@ -255,31 +305,31 @@ def generate():
         language=language
     )
 
-    payload = {
-        "model": OLLAMA_MODEL,
-        "prompt": prompt,
-        "stream": False,
-        "options": {
-            "temperature": 0.8,
-            "top_p": 0.9,
-            "num_predict": LENGTH_TOKEN_LIMITS.get(length, 500),
-        }
-    }
+    max_tokens = LENGTH_TOKEN_LIMITS.get(length, 650)
 
     try:
-        response = requests.post(
-            f"{OLLAMA_URL}/api/generate",
-            json=payload,
-            timeout=REQUEST_TIMEOUT
+        from google import genai
+        from google.genai import types
+
+        client = genai.Client(api_key=api_key)
+
+        response = client.models.generate_content(
+            model=GEMINI_MODEL,
+            contents=prompt,
+            config=types.GenerateContentConfig(
+                temperature=0.8,
+                top_p=0.9,
+                max_output_tokens=max_tokens,
+            )
         )
-        response.raise_for_status()
-        resp_json = response.json()
-        raw_output = resp_json.get("response", "")
+
+        raw_output = response.text if response and hasattr(response, "text") and response.text else ""
 
         if not raw_output or not raw_output.strip():
             return jsonify({
                 "success": False,
-                "error": "The spirits returned an empty response. Please try again with a different prompt."
+                "error": "The spirits returned an empty response. Please try again with a different premise.",
+                "code": "EMPTY_RESPONSE"
             }), 502
 
         title, story = parse_ai_response(
@@ -295,37 +345,41 @@ def generate():
             "category": category,
             "length": length,
             "language": language,
-            "model": OLLAMA_MODEL
+            "model": GEMINI_MODEL
         }), 200
 
-    except requests.exceptions.ConnectionError:
-        return jsonify({
-            "success": False,
-            "error": "The ghost realm is currently unreachable. Please start Ollama and make sure the AI model is installed.",
-            "troubleshooting": [
-                "1. Make sure Ollama is installed from https://ollama.com",
-                f"2. Start Ollama and pull the model: `ollama pull {OLLAMA_MODEL}`",
-                f"3. Verify Ollama is running at {OLLAMA_URL}"
-            ]
-        }), 503
-
-    except requests.exceptions.Timeout:
-        return jsonify({
-            "success": False,
-            "error": f"The spirits took too long to answer (timed out after {REQUEST_TIMEOUT}s). Try a shorter length option."
-        }), 504
-
-    except requests.exceptions.HTTPError as err:
-        return jsonify({
-            "success": False,
-            "error": f"Ollama returned HTTP error: {err.response.status_code if err.response else 'Unknown'}"
-        }), 502
-
     except Exception as exc:
-        # Keep internal stack trace hidden from user
+        exc_str = str(exc).lower()
+
+        # Specific handling for Rate Limits
+        if "429" in exc_str or "resource_exhausted" in exc_str or "quota" in exc_str:
+            return jsonify({
+                "success": False,
+                "error": "The spirits are overwhelmed by too many summoners. The ghost realm is rate limited; please wait a moment and try again.",
+                "code": "RATE_LIMITED"
+            }), 429
+
+        # Specific handling for Authentication / Invalid Key
+        if "401" in exc_str or "403" in exc_str or "unauthenticated" in exc_str or "api key not valid" in exc_str:
+            return jsonify({
+                "success": False,
+                "error": "Authentication failed with the ghost realm. Please verify that GEMINI_API_KEY is valid in your Vercel settings.",
+                "code": "AUTH_ERROR"
+            }), 502
+
+        # Specific handling for Timeouts / Deadline Exceeded
+        if "deadline" in exc_str or "timeout" in exc_str or "timed out" in exc_str:
+            return jsonify({
+                "success": False,
+                "error": "The spirits took too long to answer from the void. Please try again with a shorter length option.",
+                "code": "TIMEOUT"
+            }), 504
+
+        # General server error (protect internal secrets and stack trace)
         return jsonify({
             "success": False,
-            "error": "An unexpected darkness enveloped the generator. Please try again later."
+            "error": "The ghost realm is temporarily unavailable. Please try again shortly.",
+            "code": "PROVIDER_ERROR"
         }), 500
 
 
@@ -333,5 +387,6 @@ if __name__ == "__main__":
     port = int(os.environ.get("PORT", 5000))
     debug = os.environ.get("FLASK_DEBUG", "False").lower() in ("true", "1", "t")
     print(f"👻 AI Ghost Story Generator starting on http://127.0.0.1:{port}")
-    print(f"🔮 Ollama target: {OLLAMA_URL} (Model: {OLLAMA_MODEL})")
+    print(f"🔮 AI Provider: Google Gemini ({GEMINI_MODEL})")
+    print(f"🔑 GEMINI_API_KEY Configured: {'Yes' if os.environ.get('GEMINI_API_KEY') else 'No (set GEMINI_API_KEY in .env)'}")
     app.run(host="0.0.0.0", port=port, debug=debug)

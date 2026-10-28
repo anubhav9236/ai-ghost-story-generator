@@ -1,19 +1,20 @@
 """
 Unit and integration tests for AI Ghost Story Generator Flask application.
-All tests use mocking where necessary so that tests do not require real Ollama service or model.
+All tests use mocking so that tests execute rapidly without requiring live Google Gemini credentials.
 """
 
+import os
 from unittest.mock import patch, MagicMock
 import pytest
-import requests
 
-from app import app, ALLOWED_CATEGORIES, ALLOWED_LENGTHS, parse_ai_response, construct_prompt
+from app import app, ALLOWED_CATEGORIES, ALLOWED_LENGTHS, parse_ai_response, construct_prompt, is_rate_limited, _rate_limit_records
 
 
 @pytest.fixture
 def client():
     """Create a test client for the Flask application."""
     app.config["TESTING"] = True
+    _rate_limit_records.clear()
     with app.test_client() as client:
         yield client
 
@@ -27,35 +28,27 @@ def test_homepage_loads(client):
     assert "Create Your Own Nightmare" in html
 
 
-def test_health_endpoint_healthy(client):
-    """Confirm the health check endpoint returns 200 with structured JSON."""
-    with patch("requests.get") as mock_get:
-        mock_response = MagicMock()
-        mock_response.status_code = 200
-        mock_response.json.return_value = {
-            "models": [{"name": "llama3.2:3b"}, {"name": "mistral:latest"}]
-        }
-        mock_get.return_value = mock_response
-
+def test_health_endpoint_configured(client):
+    """Confirm the health check endpoint returns 200 when GEMINI_API_KEY is configured."""
+    with patch.dict(os.environ, {"GEMINI_API_KEY": "fake_test_key_12345"}):
         response = client.get("/health")
         assert response.status_code == 200
         data = response.get_json()
         assert data["status"] == "ok"
         assert data["flask"] == "healthy"
-        assert data["ollama"]["connected"] is True
-        assert data["ollama"]["model_available"] is True
+        assert data["provider"] == "google-gemini"
+        assert data["api_key_configured"] is True
 
 
-def test_health_endpoint_ollama_disconnected(client):
-    """Confirm the health check reports disconnected when Ollama is offline without crashing."""
-    with patch("requests.get", side_effect=requests.exceptions.ConnectionError("Offline")):
+def test_health_endpoint_unconfigured(client):
+    """Confirm the health check endpoint reports unconfigured when GEMINI_API_KEY is missing."""
+    with patch.dict(os.environ, {"GEMINI_API_KEY": ""}):
         response = client.get("/health")
         assert response.status_code == 200
         data = response.get_json()
         assert data["status"] == "ok"
         assert data["flask"] == "healthy"
-        assert data["ollama"]["connected"] is False
-        assert data["ollama"]["model_available"] is False
+        assert data["api_key_configured"] is False
 
 
 def test_generate_non_json_request(client):
@@ -65,6 +58,7 @@ def test_generate_non_json_request(client):
     data = response.get_json()
     assert data["success"] is False
     assert "Request body must be JSON" in data["error"]
+    assert data["code"] == "INVALID_JSON"
 
 
 def test_generate_missing_idea(client):
@@ -77,6 +71,21 @@ def test_generate_missing_idea(client):
     data = response.get_json()
     assert data["success"] is False
     assert "at least 3 characters" in data["error"]
+    assert data["code"] == "INPUT_TOO_SHORT"
+
+
+def test_generate_oversized_idea(client):
+    """Confirm idea exceeding 2000 characters is rejected with HTTP 400."""
+    oversized_idea = "A" * 2001
+    response = client.post(
+        "/generate",
+        json={"idea": oversized_idea, "category": "Haunted House", "length": "Short"}
+    )
+    assert response.status_code == 400
+    data = response.get_json()
+    assert data["success"] is False
+    assert "exceeds maximum allowed length" in data["error"]
+    assert data["code"] == "INPUT_TOO_LONG"
 
 
 def test_generate_invalid_category(client):
@@ -89,6 +98,7 @@ def test_generate_invalid_category(client):
     data = response.get_json()
     assert data["success"] is False
     assert "Invalid category" in data["error"]
+    assert data["code"] == "INVALID_CATEGORY"
 
 
 def test_generate_invalid_length(client):
@@ -101,45 +111,97 @@ def test_generate_invalid_length(client):
     data = response.get_json()
     assert data["success"] is False
     assert "Invalid length" in data["error"]
+    assert data["code"] == "INVALID_LENGTH"
 
 
-def test_generate_connection_failure(client):
-    """Confirm connection failure to Ollama returns HTTP 503 with helpful user guidance."""
-    with patch("requests.post", side_effect=requests.exceptions.ConnectionError("Refused")):
+def test_generate_missing_api_key(client):
+    """Confirm missing GEMINI_API_KEY returns HTTP 500 with configuration guidance."""
+    with patch.dict(os.environ, {"GEMINI_API_KEY": ""}):
         response = client.post(
             "/generate",
             json={
-                "idea": "A phantom train that only runs when the moon is blood red.",
+                "idea": "A phantom train on abandoned tracks.",
                 "category": "Supernatural Horror",
                 "length": "Short"
             }
         )
-        assert response.status_code == 503
+        assert response.status_code == 500
         data = response.get_json()
         assert data["success"] is False
-        assert "The ghost realm is currently unreachable" in data["error"]
-        assert "troubleshooting" in data
+        assert data["code"] == "MISSING_API_KEY"
+        assert "GEMINI_API_KEY is not set" in data["error"]
 
 
-def test_generate_timeout_failure(client):
-    """Confirm Ollama request timeout returns HTTP 504."""
-    with patch("requests.post", side_effect=requests.exceptions.Timeout("Timed out")):
-        response = client.post(
-            "/generate",
-            json={
-                "idea": "A cursed antique clock that ticks backwards.",
-                "category": "Ancient Folklore",
-                "length": "Long"
-            }
-        )
-        assert response.status_code == 504
-        data = response.get_json()
-        assert data["success"] is False
-        assert "timed out" in data["error"].lower()
+def test_generate_gemini_api_error(client):
+    """Confirm general Gemini API error returns HTTP 500 with safe error message."""
+    with patch.dict(os.environ, {"GEMINI_API_KEY": "fake_key_123"}):
+        with patch("google.genai.Client") as mock_client_cls:
+            mock_client = MagicMock()
+            mock_client.models.generate_content.side_effect = Exception("Internal RPC failure")
+            mock_client_cls.return_value = mock_client
+
+            response = client.post(
+                "/generate",
+                json={
+                    "idea": "An antique mirror reflecting an empty room.",
+                    "category": "Haunted House",
+                    "length": "Short"
+                }
+            )
+            assert response.status_code == 500
+            data = response.get_json()
+            assert data["success"] is False
+            assert data["code"] == "PROVIDER_ERROR"
+            assert "temporarily unavailable" in data["error"]
 
 
-def test_generate_success_mocked_ollama(client):
-    """Confirm successful story generation with mocked Ollama response."""
+def test_generate_gemini_rate_limit(client):
+    """Confirm Gemini rate limit error (429 / resource exhausted) returns HTTP 429."""
+    with patch.dict(os.environ, {"GEMINI_API_KEY": "fake_key_123"}):
+        with patch("google.genai.Client") as mock_client_cls:
+            mock_client = MagicMock()
+            mock_client.models.generate_content.side_effect = Exception("429 ResourceExhausted: Quota exceeded")
+            mock_client_cls.return_value = mock_client
+
+            response = client.post(
+                "/generate",
+                json={
+                    "idea": "A whispering well in the deep woods.",
+                    "category": "Ancient Folklore",
+                    "length": "Short"
+                }
+            )
+            assert response.status_code == 429
+            data = response.get_json()
+            assert data["success"] is False
+            assert data["code"] == "RATE_LIMITED"
+            assert "rate limited" in data["error"]
+
+
+def test_generate_gemini_timeout(client):
+    """Confirm Gemini timeout returns HTTP 504."""
+    with patch.dict(os.environ, {"GEMINI_API_KEY": "fake_key_123"}):
+        with patch("google.genai.Client") as mock_client_cls:
+            mock_client = MagicMock()
+            mock_client.models.generate_content.side_effect = Exception("Deadline exceeded / timed out waiting for response")
+            mock_client_cls.return_value = mock_client
+
+            response = client.post(
+                "/generate",
+                json={
+                    "idea": "A ticking clock in an empty room.",
+                    "category": "Ghost Mystery",
+                    "length": "Long"
+                }
+            )
+            assert response.status_code == 504
+            data = response.get_json()
+            assert data["success"] is False
+            assert data["code"] == "TIMEOUT"
+
+
+def test_generate_success_mocked_gemini(client):
+    """Confirm successful English story generation with mocked Gemini response."""
     mock_llm_text = (
         "Title: The Whispering Gallery\n"
         "Story:\n"
@@ -148,60 +210,34 @@ def test_generate_success_mocked_ollama(client):
         "whispered back to her, spoken in a voice she had buried twenty years ago."
     )
 
-    with patch("requests.post") as mock_post:
-        mock_response = MagicMock()
-        mock_response.status_code = 200
-        mock_response.json.return_value = {"response": mock_llm_text}
-        mock_post.return_value = mock_response
+    with patch.dict(os.environ, {"GEMINI_API_KEY": "fake_key_123"}):
+        with patch("google.genai.Client") as mock_client_cls:
+            mock_client = MagicMock()
+            mock_response = MagicMock()
+            mock_response.text = mock_llm_text
+            mock_client.models.generate_content.return_value = mock_response
+            mock_client_cls.return_value = mock_client
 
-        response = client.post(
-            "/generate",
-            json={
-                "idea": "An old mirror that reflects someone standing right behind you.",
-                "category": "Haunted House",
-                "length": "Short"
-            }
-        )
-        assert response.status_code == 200
-        data = response.get_json()
-        assert data["success"] is True
-        assert data["title"] == "The Whispering Gallery"
-        assert "Ashburn Hall" in data["story"]
-        assert data["category"] == "Haunted House"
-        assert data["length"] == "Short"
-
-
-def test_generate_custom_title_honored(client):
-    """Confirm custom title supplied by user is used in the response."""
-    mock_llm_text = (
-        "Title: Some AI Generated Title\n"
-        "Story:\n"
-        "The bell in the chapel tower toll without a rope."
-    )
-
-    with patch("requests.post") as mock_post:
-        mock_response = MagicMock()
-        mock_response.status_code = 200
-        mock_response.json.return_value = {"response": mock_llm_text}
-        mock_post.return_value = mock_response
-
-        response = client.post(
-            "/generate",
-            json={
-                "idea": "The church bell that rings on stormy nights.",
-                "category": "Ghost Mystery",
-                "length": "Short",
-                "title": "Midnight Toll of Sorrow"
-            }
-        )
-        assert response.status_code == 200
-        data = response.get_json()
-        assert data["success"] is True
-        assert data["title"] == "Midnight Toll of Sorrow"
+            response = client.post(
+                "/generate",
+                json={
+                    "idea": "An old mirror that reflects someone standing right behind you.",
+                    "category": "Haunted House",
+                    "length": "Short"
+                }
+            )
+            assert response.status_code == 200
+            data = response.get_json()
+            assert data["success"] is True
+            assert data["title"] == "The Whispering Gallery"
+            assert "Ashburn Hall" in data["story"]
+            assert data["category"] == "Haunted House"
+            assert data["length"] == "Short"
+            assert data["model"] == "gemini-2.5-flash"
 
 
-def test_generate_hindi_success_mocked_ollama(client):
-    """Confirm successful Hindi story generation with mocked Ollama response."""
+def test_generate_hindi_success_mocked_gemini(client):
+    """Confirm successful Hindi story generation with mocked Gemini response."""
     mock_hindi_text = (
         "शीर्षक: पुरानी हवेली का साया\n"
         "कहानी:\n"
@@ -209,27 +245,60 @@ def test_generate_hindi_success_mocked_ollama(client):
         "रोहन ने जैसे ही कदम आगे बढ़ाया, उसे महसूस हुआ कि अंधेरे में कोई उसका नाम फुसफुसा रहा था।"
     )
 
-    with patch("requests.post") as mock_post:
-        mock_response = MagicMock()
-        mock_response.status_code = 200
-        mock_response.json.return_value = {"response": mock_hindi_text}
-        mock_post.return_value = mock_response
+    with patch.dict(os.environ, {"GEMINI_API_KEY": "fake_key_123"}):
+        with patch("google.genai.Client") as mock_client_cls:
+            mock_client = MagicMock()
+            mock_response = MagicMock()
+            mock_response.text = mock_hindi_text
+            mock_client.models.generate_content.return_value = mock_response
+            mock_client_cls.return_value = mock_client
 
-        response = client.post(
-            "/generate",
-            json={
-                "idea": "एक पुरानी हवेली जहाँ आधी रात को घुंघरू की आवाज आती है।",
-                "category": "Haunted House",
-                "length": "Short",
-                "language": "Hindi"
-            }
-        )
-        assert response.status_code == 200
-        data = response.get_json()
-        assert data["success"] is True
-        assert "पुरानी हवेली" in data["title"]
-        assert "रोहन" in data["story"]
-        assert data["language"] == "Hindi"
+            response = client.post(
+                "/generate",
+                json={
+                    "idea": "एक पुरानी हवेली जहाँ आधी रात को घुंघरू की आवाज आती है।",
+                    "category": "Haunted House",
+                    "length": "Short",
+                    "language": "Hindi"
+                }
+            )
+            assert response.status_code == 200
+            data = response.get_json()
+            assert data["success"] is True
+            assert "पुरानी हवेली" in data["title"]
+            assert "रोहन" in data["story"]
+            assert data["language"] == "Hindi"
+
+
+def test_generate_custom_title_honored(client):
+    """Confirm custom title supplied by user is used in the response."""
+    mock_llm_text = (
+        "Title: Some Gemini Title\n"
+        "Story:\n"
+        "The bell in the chapel tower tolled without a rope."
+    )
+
+    with patch.dict(os.environ, {"GEMINI_API_KEY": "fake_key_123"}):
+        with patch("google.genai.Client") as mock_client_cls:
+            mock_client = MagicMock()
+            mock_response = MagicMock()
+            mock_response.text = mock_llm_text
+            mock_client.models.generate_content.return_value = mock_response
+            mock_client_cls.return_value = mock_client
+
+            response = client.post(
+                "/generate",
+                json={
+                    "idea": "The church bell that rings on stormy nights.",
+                    "category": "Ghost Mystery",
+                    "length": "Short",
+                    "title": "Midnight Toll of Sorrow"
+                }
+            )
+            assert response.status_code == 200
+            data = response.get_json()
+            assert data["success"] is True
+            assert data["title"] == "Midnight Toll of Sorrow"
 
 
 def test_parse_ai_response_edge_cases():
@@ -258,6 +327,33 @@ def test_parse_ai_response_edge_cases():
     assert "कब्रिस्तान के सन्नाटे" in s4
 
 
+def test_rate_limiter_exceeded(client):
+    """Verify client IP rate limiter triggers HTTP 429 when threshold is reached."""
+    with patch.dict(os.environ, {"GEMINI_API_KEY": "fake_key_123"}):
+        with patch("google.genai.Client") as mock_client_cls:
+            mock_client = MagicMock()
+            mock_response = MagicMock()
+            mock_response.text = "Title: Quick Tale\nStory:\nA quick ghost story."
+            mock_client.models.generate_content.return_value = mock_response
+            mock_client_cls.return_value = mock_client
+
+            payload = {
+                "idea": "A recurring shadow in the hallway.",
+                "category": "Supernatural Horror",
+                "length": "Short"
+            }
+
+            # Send 10 requests (the allowed max per minute)
+            for _ in range(10):
+                res = client.post("/generate", json=payload)
+                assert res.status_code == 200
+
+            # The 11th request must be rate limited
+            res_limited = client.post("/generate", json=payload)
+            assert res_limited.status_code == 429
+            data = res_limited.get_json()
+            assert data["code"] == "RATE_LIMITED"
+
+
 if __name__ == "__main__":
     pytest.main(["-v", __file__])
-
