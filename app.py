@@ -313,15 +313,47 @@ def generate():
 
         client = genai.Client(api_key=api_key)
 
-        # Fallback candidate models in case the chosen model is restricted on new API projects
-        candidate_models = [GEMINI_MODEL, "gemini-2.5-flash", "gemini-2.0-flash", "gemini-1.5-flash"]
-        unique_models = list(dict.fromkeys(candidate_models))
+        # Dynamic model discovery: Query Google for models supported by this specific API key
+        discovered_models = []
+        list_error_msg = None
+        try:
+            for m in client.models.list():
+                name = getattr(m, "name", "") or ""
+                clean_name = name.replace("models/", "").strip()
+                methods = getattr(m, "supported_generation_methods", None) or getattr(m, "supported_actions", None) or []
+                if not methods or "generateContent" in methods:
+                    if clean_name not in discovered_models:
+                        discovered_models.append(clean_name)
+        except Exception as l_err:
+            list_error_msg = str(l_err)
+            sys.stderr.write(f"[WARN] client.models.list() failed: {l_err}\n")
+
+        # Preferred models ordered by latency and capability
+        priority_models = [
+            GEMINI_MODEL,
+            "gemini-2.5-flash",
+            "gemini-2.0-flash",
+            "gemini-1.5-flash",
+            "gemini-1.5-flash-latest",
+            "gemini-1.5-flash-8b",
+            "gemini-1.5-pro",
+            "gemini-1.5-pro-latest",
+            "gemini-pro"
+        ]
+
+        candidate_models = []
+        for p in priority_models:
+            if p not in candidate_models:
+                candidate_models.append(p)
+        for d in discovered_models:
+            if d not in candidate_models:
+                candidate_models.append(d)
 
         response = None
         last_exc = None
         actual_model_used = GEMINI_MODEL
 
-        for model_name in unique_models:
+        for model_name in candidate_models:
             try:
                 response = client.models.generate_content(
                     model=model_name,
@@ -341,11 +373,17 @@ def generate():
                 # Stop fallback immediately if the key itself is invalid or quota is exhausted
                 if "api key" in err_lower or "api_key" in err_lower or "401" in err_lower or "403" in err_lower or "quota" in err_lower or "429" in err_lower:
                     raise model_err
-                # Otherwise, continue to next fallback candidate (e.g. 404 model not found)
                 continue
 
-        if not response and last_exc:
-            raise last_exc
+        if not response:
+            if last_exc:
+                if list_error_msg:
+                    raise Exception(f"{last_exc} (ListModels note: {list_error_msg})")
+                raise last_exc
+            elif discovered_models:
+                raise Exception(f"No generation models responded. Available: {discovered_models[:5]}")
+            else:
+                raise Exception("No generation models found for this API key.")
 
         raw_output = response.text if response and hasattr(response, "text") and response.text else ""
 
