@@ -374,13 +374,15 @@ def generate():
 
     except Exception as exc:
         exc_str = str(exc).lower()
-        sys.stderr.write(f"[ERROR] Gemini Generation Failed: {exc}\n")
+        safe_diagnostic = re.sub(r"AIza[A-Za-z0-9_-]+", "[REDACTED]", str(exc))
+        sys.stderr.write(f"[ERROR] Gemini Generation Failed: {safe_diagnostic}\n")
 
         # Specific handling for Rate Limits
         if "429" in exc_str or "resource_exhausted" in exc_str or "quota" in exc_str:
             return jsonify({
                 "success": False,
                 "error": "The spirits are overwhelmed by too many summoners. The ghost realm is rate limited; please wait a moment and try again.",
+                "details": safe_diagnostic[:300],
                 "code": "RATE_LIMITED"
             }), 429
 
@@ -389,6 +391,7 @@ def generate():
             return jsonify({
                 "success": False,
                 "error": "Authentication failed with the ghost realm. Please verify that GEMINI_API_KEY in your Vercel settings is a valid key from Google AI Studio.",
+                "details": safe_diagnostic[:300],
                 "code": "AUTH_ERROR"
             }), 502
 
@@ -397,6 +400,7 @@ def generate():
             return jsonify({
                 "success": False,
                 "error": "The spirits took too long to answer from the void. Please try again with a shorter length option.",
+                "details": safe_diagnostic[:300],
                 "code": "TIMEOUT"
             }), 504
 
@@ -405,6 +409,7 @@ def generate():
             return jsonify({
                 "success": False,
                 "error": "The selected AI model is currently unavailable for this API key. Please check your Google AI Studio project settings.",
+                "details": safe_diagnostic[:300],
                 "code": "MODEL_UNAVAILABLE"
             }), 502
 
@@ -412,6 +417,7 @@ def generate():
         return jsonify({
             "success": False,
             "error": "The ghost realm is temporarily unavailable. Please try again shortly.",
+            "details": safe_diagnostic[:300],
             "code": "PROVIDER_ERROR"
         }), 500
 
