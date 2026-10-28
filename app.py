@@ -289,7 +289,7 @@ def generate():
         }), 429
 
     # Verify server-side API key configuration
-    api_key = os.environ.get("GEMINI_API_KEY", "").strip()
+    api_key = os.environ.get("GEMINI_API_KEY", "").strip().strip('"\'')
     if not api_key:
         return jsonify({
             "success": False,
@@ -313,15 +313,39 @@ def generate():
 
         client = genai.Client(api_key=api_key)
 
-        response = client.models.generate_content(
-            model=GEMINI_MODEL,
-            contents=prompt,
-            config=types.GenerateContentConfig(
-                temperature=0.8,
-                top_p=0.9,
-                max_output_tokens=max_tokens,
-            )
-        )
+        # Fallback candidate models in case the chosen model is restricted on new API projects
+        candidate_models = [GEMINI_MODEL, "gemini-2.5-flash", "gemini-2.0-flash", "gemini-1.5-flash"]
+        unique_models = list(dict.fromkeys(candidate_models))
+
+        response = None
+        last_exc = None
+        actual_model_used = GEMINI_MODEL
+
+        for model_name in unique_models:
+            try:
+                response = client.models.generate_content(
+                    model=model_name,
+                    contents=prompt,
+                    config=types.GenerateContentConfig(
+                        temperature=0.8,
+                        top_p=0.9,
+                        max_output_tokens=max_tokens,
+                    )
+                )
+                if response and hasattr(response, "text") and response.text:
+                    actual_model_used = model_name
+                    break
+            except Exception as model_err:
+                last_exc = model_err
+                err_lower = str(model_err).lower()
+                # Stop fallback immediately if the key itself is invalid or quota is exhausted
+                if "api key" in err_lower or "api_key" in err_lower or "401" in err_lower or "403" in err_lower or "quota" in err_lower or "429" in err_lower:
+                    raise model_err
+                # Otherwise, continue to next fallback candidate (e.g. 404 model not found)
+                continue
+
+        if not response and last_exc:
+            raise last_exc
 
         raw_output = response.text if response and hasattr(response, "text") and response.text else ""
 
@@ -345,11 +369,12 @@ def generate():
             "category": category,
             "length": length,
             "language": language,
-            "model": GEMINI_MODEL
+            "model": actual_model_used
         }), 200
 
     except Exception as exc:
         exc_str = str(exc).lower()
+        sys.stderr.write(f"[ERROR] Gemini Generation Failed: {exc}\n")
 
         # Specific handling for Rate Limits
         if "429" in exc_str or "resource_exhausted" in exc_str or "quota" in exc_str:
@@ -360,10 +385,10 @@ def generate():
             }), 429
 
         # Specific handling for Authentication / Invalid Key
-        if "401" in exc_str or "403" in exc_str or "unauthenticated" in exc_str or "api key not valid" in exc_str:
+        if "401" in exc_str or "403" in exc_str or "unauthenticated" in exc_str or "api key not valid" in exc_str or "api_key_invalid" in exc_str:
             return jsonify({
                 "success": False,
-                "error": "Authentication failed with the ghost realm. Please verify that GEMINI_API_KEY is valid in your Vercel settings.",
+                "error": "Authentication failed with the ghost realm. Please verify that GEMINI_API_KEY in your Vercel settings is a valid key from Google AI Studio.",
                 "code": "AUTH_ERROR"
             }), 502
 
@@ -374,6 +399,14 @@ def generate():
                 "error": "The spirits took too long to answer from the void. Please try again with a shorter length option.",
                 "code": "TIMEOUT"
             }), 504
+
+        # Model not found or unavailable
+        if "not found" in exc_str or "not supported" in exc_str:
+            return jsonify({
+                "success": False,
+                "error": "The selected AI model is currently unavailable for this API key. Please check your Google AI Studio project settings.",
+                "code": "MODEL_UNAVAILABLE"
+            }), 502
 
         # General server error (protect internal secrets and stack trace)
         return jsonify({
