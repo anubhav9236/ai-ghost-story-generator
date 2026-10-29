@@ -203,6 +203,12 @@
                     <li><a href="#open-source-ai" class="nav-link">Open-Source AI</a></li>
                     <li><a href="#about" class="nav-link">About</a></li>
                     <li>
+                        <button type="button" class="nav-key-btn" id="open-key-modal-btn" title="Configure Custom Gemini API Key">
+                            <span class="key-icon" aria-hidden="true">🔑</span>
+                            <span class="key-text" id="nav-key-text">Gemini Key</span>
+                        </button>
+                    </li>
+                    <li>
                         <a href="#generator" class="nav-cta-btn">Summon Story 👻</a>
                     </li>
                 </ul>
@@ -413,6 +419,11 @@
                                             <input type="radio" name="category" value="Emotional Ghost Story">
                                             <span class="pill-icon" aria-hidden="true">💔</span>
                                             <span class="pill-label">Emotional Ghost Story</span>
+                                        </label>
+                                        <label class="category-pill">
+                                            <input type="radio" name="category" value="Cursed Code">
+                                            <span class="pill-icon" aria-hidden="true">💻</span>
+                                            <span class="pill-label">Cursed Code</span>
                                         </label>
                                     </div>
                                 </div>
@@ -947,6 +958,43 @@
                 </div>
             </div>
         </footer>
+    <!-- CUSTOM GEMINI API KEY MODAL (Bring Your Own Key) -->
+    <div class="key-modal-overlay hidden" id="key-modal" role="dialog" aria-modal="true" aria-labelledby="key-modal-title">
+        <div class="key-modal-card glass-panel">
+            <div class="key-modal-header">
+                <h3 class="key-modal-title" id="key-modal-title">🔑 Gemini API Key Settings</h3>
+                <button type="button" class="btn-close-modal" id="close-key-modal-btn" aria-label="Close API Key dialog">✕</button>
+            </div>
+            <div class="key-modal-body">
+                <p class="key-modal-desc">
+                    By default, this application uses our server-side Google Gemini key backed by our <strong>Ancestral Lore Engine (Quota-Resilient Shield)</strong>.
+                </p>
+                <p class="key-modal-subdesc">
+                    If you have your own Google Gemini API key from <a href="https://aistudio.google.com/app/apikey" target="_blank" rel="noopener noreferrer">Google AI Studio ↗</a>, you can enter it below to summon tales using your personal quota. Your key is stored solely in your browser's <code>localStorage</code>.
+                </p>
+                <div class="form-group">
+                    <label for="custom-gemini-key" class="form-label">Your Google Gemini API Key</label>
+                    <div class="key-input-wrapper">
+                        <input 
+                            type="password" 
+                            id="custom-gemini-key" 
+                            class="form-control" 
+                            placeholder="AIzaSy..." 
+                            autocomplete="off"
+                        >
+                        <button type="button" class="btn-toggle-key-visibility" id="toggle-key-visibility-btn" title="Toggle visibility">👁️</button>
+                    </div>
+                </div>
+                <div class="key-status-indicator" id="key-status-indicator">
+                    <span class="status-dot"></span>
+                    <span class="status-text" id="key-status-text">Using Shared Server Key &amp; Quota Shield</span>
+                </div>
+            </div>
+            <div class="key-modal-footer">
+                <button type="button" class="btn btn-secondary" id="clear-key-btn">Reset to Server Key</button>
+                <button type="button" class="btn btn-primary" id="save-key-btn">Save Key</button>
+            </div>
+        </div>
     </div>
 
     <!-- Scripts -->

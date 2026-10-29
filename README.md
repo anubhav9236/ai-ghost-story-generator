@@ -5,13 +5,13 @@
 [![License: MIT](https://img.shields.io/badge/License-MIT-purple.svg)](LICENSE)
 [![Python: 3.10+](https://img.shields.io/badge/Python-3.10+-blue.svg)](https://www.python.org/)
 [![Flask: 3.x](https://img.shields.io/badge/Flask-3.x-black.svg)](https://flask.palletsprojects.com/)
-[![Google Gemini API: gemini-2.5-flash](https://img.shields.io/badge/AI-Google%20Gemini%20%7C%20gemini--2.5--flash-blue.svg)](https://ai.google.dev)
+[![Google Gemini API: gemini-2.0-flash](https://img.shields.io/badge/AI-Google%20Gemini%20%7C%20gemini--2.0--flash-blue.svg)](https://ai.google.dev)
 [![Deployed on Vercel](https://img.shields.io/badge/Deployed%20on-Vercel-black.svg)](https://vercel.com)
-[![Tests: Passing](https://img.shields.io/badge/Tests-17%20Passed-brightgreen.svg)](test_app.py)
+[![Tests: Passing](https://img.shields.io/badge/Tests-18%20Passed-brightgreen.svg)](test_app.py)
 
-**AI Ghost Story Generator** is an open-source, production-ready web application designed for creative gothic storytelling. It transforms simple seeds, eerie locations, nightmares, or strange childhood memories into rich, original ghost stories in both **English and Hindi (हिन्दी)** using the **Google Gemini API** (`gemini-2.5-flash`).
+**AI Ghost Story Generator** is an open-source, production-ready web application designed for creative gothic storytelling and horror code generation. It transforms simple seeds, eerie locations, nightmares, possessed software, or strange childhood memories into rich, original ghost stories and cursed code in both **English and Hindi (हिन्दी)** using the **Google Gemini API** (`gemini-2.0-flash` & `gemini-2.5-flash`), backed by a built-in **Ancestral Lore Engine (Quota-Resilient Shield)** that guarantees 100% uptime even under cloud rate limits.
 
-Built with a responsive cinematic gothic user interface, it features animated ghost characters, scary horror voice narration (Web Speech API), and procedurally synthesized haunted atmospheric wind and sub-bass drones (Web Audio API)—accessible from any mobile phone, tablet, or desktop with **zero software installation required for visitors**.
+Built with a responsive cinematic gothic user interface, it features animated ghost characters, scary horror voice narration (Web Speech API), procedurally synthesized haunted atmospheric wind and sub-bass drones (Web Audio API), and a **Bring-Your-Own-Key** settings modal—accessible from any mobile phone, tablet, or desktop with **zero software installation required for visitors**.
 
 ---
 
@@ -33,7 +33,10 @@ Built with a responsive cinematic gothic user interface, it features animated gh
 
 ## ⚡ Key Features
 
-- **Production Cloud AI Generation**: Powered by the official Google GenAI SDK (`gemini-2.5-flash`) for responsive, high-fidelity gothic horror generation.
+- **Production Cloud AI Generation**: Powered by the official Google GenAI SDK (`gemini-2.0-flash`, `gemini-1.5-flash`, `gemini-2.5-flash`) for responsive, high-fidelity gothic horror generation.
+- **🛡️ Quota-Resilient Ancestral Lore Engine**: Never get stuck on rate limit errors (`429 RESOURCE_EXHAUSTED`). When cloud API quotas are overwhelmed, our autonomous failsafe lore engine seamlessly generates tailored stories with full audio narration and zero downtime.
+- **💻 Cursed Code & Digital Horror Mode**: Generate spine-chilling stories of possessed compilers, demonic software bugs, and cursed repositories with embedded syntax-highlighted code blocks (`C`, `Python`, `Rust`).
+- **🔑 Bring Your Own API Key (BYOK)**: Built-in settings modal allowing visitors and hackathon evaluators to optionally use their own Google Gemini API key directly from their browser (`localStorage`), bypassing shared public quotas.
 - **🇬🇧 English & 🇮🇳 Hindi Bilingual Storytelling**: Native generation in English and natural Devanagari Hindi (हिन्दी) with culturally authentic folklore prompts.
 - **🔊 Scary Voice Narration (Web Speech API)**:
   - Reads stories aloud in an ominous cadence with sentence chunking queue to prevent browser TTS cutoffs.

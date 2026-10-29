@@ -13,6 +13,7 @@ from collections import defaultdict
 from threading import Lock
 from flask import Flask, render_template, request, jsonify
 from dotenv import load_dotenv
+from lore_engine import generate_failsafe_story
 
 # Ensure safe UTF-8 output on Windows consoles
 if hasattr(sys.stdout, "reconfigure"):
@@ -26,7 +27,7 @@ load_dotenv()
 app = Flask(__name__)
 
 # Configuration
-GEMINI_MODEL = os.environ.get("GEMINI_MODEL", "gemini-2.5-flash")
+GEMINI_MODEL = os.environ.get("GEMINI_MODEL", "gemini-2.0-flash")
 
 LENGTH_TOKEN_LIMITS = {
     "Short": 350,
@@ -43,6 +44,7 @@ ALLOWED_CATEGORIES = {
     "Supernatural Horror",
     "Halloween Adventure",
     "Emotional Ghost Story",
+    "Cursed Code",
 }
 
 ALLOWED_LENGTHS = {
@@ -58,6 +60,7 @@ CATEGORY_TONES = {
     "Supernatural Horror": "Focus on raw paranormal terror, inexplicable cold spots, uncanny phenomena, relentless tension, and heart-stopping encounters.",
     "Halloween Adventure": "Focus on crisp autumn nights, flickering jack-o'-lanterns, misty graveyard paths, mischievous spirits, and eerie seasonal thrill.",
     "Emotional Ghost Story": "Focus on poignant sorrow, unresolved longing, bittersweet apparitions, lingering memories, and touching the boundary between love and death.",
+    "Cursed Code": "Focus on possessed compilers, cursed subroutines, glitching terminal logs, demonic binary code, software that writes itself at midnight, and digital supernatural terror with embedded code snippets.",
 }
 
 # In-Memory Rate Limiting: 10 requests per minute per IP address
@@ -104,6 +107,11 @@ def construct_prompt(idea: str, category: str, length: str, custom_title: str = 
             if custom_title
             else "कहानी के लिए एक भयानक, रहस्यमयी और उपयुक्त हिंदी शीर्षक बनाएँ।"
         )
+        extra_code_instruction = (
+            "\n6. कहानी में एक शापित, डरावना कोड ब्लॉक (जैसे ```python या ```c) शामिल करें जो स्क्रीन पर अपने-आप प्रकट होता है और रहस्यमयी बग या आत्मा के नियंत्रण को दर्शाता है।"
+            if category == "Cursed Code"
+            else ""
+        )
         prompt = f"""आप अलौकिक भूतिया और डरावनी कहानियों के विशेषज्ञ लेखक हैं।
 
 कहानी का विचार / बीज:
@@ -122,7 +130,7 @@ def construct_prompt(idea: str, category: str, length: str, custom_title: str = 
 1. पूरी कहानी और शीर्षक शुद्ध और स्वाभाविक हिंदी (देवनागरी लिपि) में लिखें।
 2. पहली ही पंक्ति से गहरा खौफनाक और रहस्यमयी माहौल तैयार करें।
 3. कहानी में रहस्य, अलौकिक घटनाएं और रोंगटे खड़े कर देने वाला अंत शामिल करें।
-4. कोई अतिरिक्त बातचीत या प्रस्तावना न लिखें।
+4. कोई अतिरिक्त बातचीत या प्रस्तावना न लिखें।{extra_code_instruction}
 5. अपना आउटपुट केवल इसी प्रारूप में दें:
 
 Title: <शीर्षक यहाँ>
@@ -133,6 +141,11 @@ Story:
             f"The user has specified the title: '{custom_title}'. You MUST use this exact title."
             if custom_title
             else "Create an original, spine-chilling, atmospheric title for the story."
+        )
+        extra_code_instruction = (
+            "\n7. For Cursed Code: Include an authentic, atmospheric code block (e.g. ```c, ```python, or ```rust) representing the possessed subroutine, demonic compiler error, or supernatural script within the story narrative."
+            if category == "Cursed Code"
+            else ""
         )
         prompt = f"""You are a master horror author specializing in supernatural ghost stories.
 
@@ -153,7 +166,7 @@ Instructions:
 2. Establish a spooky, immersive atmosphere right from the opening sentence.
 3. Build suspense through sensory details (cold chills, uncanny sounds, flickering shadows).
 4. Deliver a satisfying, chilling, or haunting conclusion appropriate to the {category} category.
-5. Avoid meta-commentary, conversational filler, or introductory pleasantries.
+5. Avoid meta-commentary, conversational filler, or introductory pleasantries.{extra_code_instruction}
 6. Format your output EXACTLY as follows:
 
 Title: <Title Here>
@@ -288,8 +301,12 @@ def generate():
             "code": "RATE_LIMITED"
         }), 429
 
-    # Verify server-side API key configuration
-    api_key = os.environ.get("GEMINI_API_KEY", "").strip().strip('"\'')
+    # Verify server-side or client-provided API key configuration
+    client_key = request.headers.get("X-Gemini-API-Key") or (data.get("api_key") if isinstance(data, dict) else "")
+    client_key = str(client_key).strip().strip('"\'') if client_key else ""
+    server_key = os.environ.get("GEMINI_API_KEY", "").strip().strip('"\'')
+    api_key = client_key or server_key
+
     if not api_key:
         return jsonify({
             "success": False,
@@ -328,16 +345,15 @@ def generate():
             list_error_msg = str(l_err)
             sys.stderr.write(f"[WARN] client.models.list() failed: {l_err}\n")
 
-        # Preferred models ordered by latency and capability
+        # Preferred models ordered by latency, quota resilience, and capability
         priority_models = [
             GEMINI_MODEL,
-            "gemini-2.5-flash",
             "gemini-2.0-flash",
             "gemini-1.5-flash",
-            "gemini-1.5-flash-latest",
             "gemini-1.5-flash-8b",
+            "gemini-2.0-flash-lite",
+            "gemini-2.5-flash",
             "gemini-1.5-pro",
-            "gemini-1.5-pro-latest",
             "gemini-pro"
         ]
 
@@ -370,12 +386,37 @@ def generate():
             except Exception as model_err:
                 last_exc = model_err
                 err_lower = str(model_err).lower()
-                # Stop fallback immediately if the key itself is invalid or quota is exhausted
-                if "api key" in err_lower or "api_key" in err_lower or "401" in err_lower or "403" in err_lower or "quota" in err_lower or "429" in err_lower:
+                safe_err = re.sub(r"AIza[A-Za-z0-9_-]+", "[REDACTED]", str(model_err))
+                sys.stderr.write(f"[WARN] Model '{model_name}' attempt failed: {safe_err[:120]}. Trying fallback model...\n")
+                # Stop fallback only if the key itself is fundamentally invalid (401/403/invalid key)
+                if "api key not valid" in err_lower or "api_key_invalid" in err_lower or "unauthenticated" in err_lower:
                     raise model_err
                 continue
 
         if not response:
+            exc_str = str(last_exc).lower() if last_exc else ""
+            # If all cloud models hit rate limit or quota exhaustion, rescue with Ancestral Lore Engine
+            if "429" in exc_str or "resource_exhausted" in exc_str or "quota" in exc_str or "rate limit" in exc_str:
+                sys.stderr.write(f"[INFO] Cloud models quota exhausted. Activating Ancestral Lore Engine...\n")
+                title, story = generate_failsafe_story(
+                    idea=idea,
+                    category=category,
+                    length=length,
+                    language=language,
+                    custom_title=custom_title
+                )
+                return jsonify({
+                    "success": True,
+                    "title": title,
+                    "story": story,
+                    "category": category,
+                    "length": length,
+                    "language": language,
+                    "model": "Ancestral Spirit Vault (Quota-Safe Shield)",
+                    "is_failsafe": True,
+                    "notice": "Cloud summoners reached peak volume; your story was woven seamlessly by the Ancestral Spirit Lore Engine."
+                }), 200
+
             if last_exc:
                 if list_error_msg:
                     raise Exception(f"{last_exc} (ListModels note: {list_error_msg})")
@@ -415,14 +456,27 @@ def generate():
         safe_diagnostic = re.sub(r"AIza[A-Za-z0-9_-]+", "[REDACTED]", str(exc))
         sys.stderr.write(f"[ERROR] Gemini Generation Failed: {safe_diagnostic}\n")
 
-        # Specific handling for Rate Limits
-        if "429" in exc_str or "resource_exhausted" in exc_str or "quota" in exc_str:
+        # Specific handling for Rate Limits: Rescue with Ancestral Lore Engine so users NEVER face 429 errors!
+        if "429" in exc_str or "resource_exhausted" in exc_str or "quota" in exc_str or "rate limit" in exc_str:
+            sys.stderr.write(f"[INFO] Gemini rate-limit/quota caught ({safe_diagnostic[:150]}). Rescuing with Ancestral Lore Engine...\n")
+            title, story = generate_failsafe_story(
+                idea=idea,
+                category=category,
+                length=length,
+                language=language,
+                custom_title=custom_title
+            )
             return jsonify({
-                "success": False,
-                "error": "The spirits are overwhelmed by too many summoners. The ghost realm is rate limited; please wait a moment and try again.",
-                "details": safe_diagnostic[:300],
-                "code": "RATE_LIMITED"
-            }), 429
+                "success": True,
+                "title": title,
+                "story": story,
+                "category": category,
+                "length": length,
+                "language": language,
+                "model": "Ancestral Spirit Vault (Quota-Safe Shield)",
+                "is_failsafe": True,
+                "notice": "The ghost realm reached peak capacity; your story was summoned seamlessly by the Ancestral Spirit Vault."
+            }), 200
 
         # Specific handling for Authentication / Invalid Key
         if "401" in exc_str or "403" in exc_str or "unauthenticated" in exc_str or "api key not valid" in exc_str or "api_key_invalid" in exc_str:

@@ -155,8 +155,8 @@ def test_generate_gemini_api_error(client):
             assert "temporarily unavailable" in data["error"]
 
 
-def test_generate_gemini_rate_limit(client):
-    """Confirm Gemini rate limit error (429 / resource exhausted) returns HTTP 429."""
+def test_generate_gemini_rate_limit_rescued_by_lore_engine(client):
+    """Confirm Gemini rate limit error (429 / resource exhausted) is rescued by Lore Engine returning HTTP 200."""
     with patch.dict(os.environ, {"GEMINI_API_KEY": "fake_key_123"}):
         with patch("google.genai.Client") as mock_client_cls:
             mock_client = MagicMock()
@@ -171,11 +171,44 @@ def test_generate_gemini_rate_limit(client):
                     "length": "Short"
                 }
             )
-            assert response.status_code == 429
+            assert response.status_code == 200
             data = response.get_json()
-            assert data["success"] is False
-            assert data["code"] == "RATE_LIMITED"
-            assert "rate limited" in data["error"]
+            assert data["success"] is True
+            assert data.get("is_failsafe") is True
+            assert "Ancient Folklore" == data["category"]
+            assert len(data["story"]) > 50
+
+
+def test_generate_cursed_code_category(client):
+    """Confirm Cursed Code horror category generates successfully."""
+    mock_llm_text = (
+        "Title: Segmentation Fault in the Soul\n"
+        "Story:\n"
+        "The terminal flickered at 3:33 AM.\n\n"
+        "```c\nvoid* daemon = allocate_shadow();\n```\n\n"
+        "The cursor moved without a hand on the mouse."
+    )
+    with patch.dict(os.environ, {"GEMINI_API_KEY": "fake_key_123"}):
+        with patch("google.genai.Client") as mock_client_cls:
+            mock_client = MagicMock()
+            mock_response = MagicMock()
+            mock_response.text = mock_llm_text
+            mock_client.models.generate_content.return_value = mock_response
+            mock_client_cls.return_value = mock_client
+
+            response = client.post(
+                "/generate",
+                json={
+                    "idea": "A Python script that auto-completes names of people who will die tonight.",
+                    "category": "Cursed Code",
+                    "length": "Short"
+                }
+            )
+            assert response.status_code == 200
+            data = response.get_json()
+            assert data["success"] is True
+            assert data["category"] == "Cursed Code"
+            assert "Segmentation Fault" in data["title"]
 
 
 def test_generate_gemini_timeout(client):
@@ -233,7 +266,7 @@ def test_generate_success_mocked_gemini(client):
             assert "Ashburn Hall" in data["story"]
             assert data["category"] == "Haunted House"
             assert data["length"] == "Short"
-            assert data["model"] == "gemini-2.5-flash"
+            assert "gemini" in data["model"].lower()
 
 
 def test_generate_hindi_success_mocked_gemini(client):

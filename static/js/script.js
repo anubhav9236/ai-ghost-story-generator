@@ -84,6 +84,9 @@ document.addEventListener('DOMContentLoaded', () => {
     // 2. SPOOKY STORY IDEAS COLLECTION (English & Hindi)
     // =========================================================================
     const SPOOKY_IDEAS_EN = [
+        "A senior developer reviews a pull request merged at 3:33 AM from an anonymous committer whose code compiles into ancient Sumerian incantations.",
+        "An IDE plugin that auto-completes code predicting how and when the programmer will die.",
+        "A rogue AI script in an abandoned GitHub repo that executes an undocumented bytecode instruction summoning an apparition on screen.",
         "An abandoned Victorian mansion on a coastal cliff where a ghost appears at midnight, searching for a music box buried in the floorboards.",
         "A late-night subway train that stops at an abandoned underground station not on any official transit map.",
         "An antique wooden radio bought at an estate sale that broadcasts whisperings from a family that vanished in 1942.",
@@ -102,6 +105,8 @@ document.addEventListener('DOMContentLoaded', () => {
     ];
 
     const SPOOKY_IDEAS_HI = [
+        "एक पुरानी प्रोग्रामिंग फाइल जिसमें आधी रात को खुद-ब-खुद अजीब कोड लिखा जाने लगता है और स्क्रीन से धुआं निकलने लगता है...",
+        "एक ऐसा सॉफ्टवेयर बग जो सिर्फ अमावस की रात को एक्टिव होता है और कमरे की बत्तियां बुझा देता है...",
         "एक सुनसान पुरानी हवेली जहाँ हर अमावस्या की रात घुंघरू की रहस्यमयी आवाज गूंजती है।",
         "जंगल के बीचों-बीच स्थित एक सूखा कुआँ जिससे रात के सन्नाटे में कोई पुकारता सुनाई देता है।",
         "एक पुराना आईना जो इंसान के पीछे खड़े उस साए को दिखाता है जो आँखों से नहीं दिखता।",
@@ -907,20 +912,31 @@ document.addEventListener('DOMContentLoaded', () => {
             // Prepare UI state for loading
             setGeneratingState(true);
 
+            const customApiKey = localStorage.getItem('custom_gemini_api_key') || "";
+            const headers = {
+                'Content-Type': 'application/json',
+                'Accept': 'application/json'
+            };
+            if (customApiKey) {
+                headers['X-Gemini-API-Key'] = customApiKey;
+            }
+
+            const bodyPayload = {
+                idea: idea,
+                category: category,
+                length: length,
+                language: language,
+                title: customTitle
+            };
+            if (customApiKey) {
+                bodyPayload.api_key = customApiKey;
+            }
+
             try {
                 const response = await fetch('/generate', {
                     method: 'POST',
-                    headers: {
-                        'Content-Type': 'application/json',
-                        'Accept': 'application/json'
-                    },
-                    body: JSON.stringify({
-                        idea: idea,
-                        category: category,
-                        length: length,
-                        language: language,
-                        title: customTitle
-                    })
+                    headers: headers,
+                    body: JSON.stringify(bodyPayload)
                 });
 
                 const data = await response.json();
@@ -966,7 +982,7 @@ document.addEventListener('DOMContentLoaded', () => {
     }
 
     // =========================================================================
-    // 8. DISPLAY STORY RESULT (SAFE DOM RENDERING)
+    // 8. DISPLAY STORY RESULT (SAFE DOM RENDERING & CODE BLOCKS)
     // =========================================================================
     function displayStoryResult(data) {
         currentStoryData = data;
@@ -976,7 +992,11 @@ document.addEventListener('DOMContentLoaded', () => {
         if (resultLength) resultLength.textContent = data.length || "Medium";
         if (resultModel) {
             const langLabel = data.language ? ` • ${data.language}` : '';
-            resultModel.textContent = `Google Gemini (${data.model || "gemini-2.5-flash"}${langLabel})`;
+            if (data.is_failsafe) {
+                resultModel.innerHTML = `Ancestral Lore Engine <span class="failsafe-badge">Quota Shield 🛡️</span>${langLabel}`;
+            } else {
+                resultModel.textContent = `Google Gemini (${data.model || "gemini-2.0-flash"}${langLabel})`;
+            }
         }
 
         // Reset voice narration player state for new story
@@ -987,7 +1007,7 @@ document.addEventListener('DOMContentLoaded', () => {
         if (narrationProgressFill) narrationProgressFill.style.width = '0%';
         voiceNarrator.updatePlayerUI('idle');
 
-        // Render story paragraphs safely using textContent (prevents XSS vulnerabilities)
+        // Render story paragraphs and code blocks safely (prevents XSS vulnerabilities)
         if (resultStory) {
             resultStory.innerHTML = '';
             const rawStory = data.story || "";
@@ -995,9 +1015,35 @@ document.addEventListener('DOMContentLoaded', () => {
 
             if (paragraphs.length > 0) {
                 paragraphs.forEach(paraText => {
-                    const p = document.createElement('p');
-                    p.textContent = paraText.trim();
-                    resultStory.appendChild(p);
+                    paraText = paraText.trim();
+                    if (paraText.startsWith('```') && paraText.endsWith('```')) {
+                        const pre = document.createElement('pre');
+                        const code = document.createElement('code');
+                        const lines = paraText.split('\n');
+                        code.textContent = lines.slice(1, -1).join('\n');
+                        pre.appendChild(code);
+                        resultStory.appendChild(pre);
+                    } else if (paraText.includes('```')) {
+                        const parts = paraText.split(/(```[\s\S]*?```)/g);
+                        parts.forEach(part => {
+                            if (part.startsWith('```') && part.endsWith('```')) {
+                                const pre = document.createElement('pre');
+                                const code = document.createElement('code');
+                                const lines = part.split('\n');
+                                code.textContent = lines.slice(1, -1).join('\n');
+                                pre.appendChild(code);
+                                resultStory.appendChild(pre);
+                            } else if (part.trim()) {
+                                const p = document.createElement('p');
+                                p.textContent = part.trim();
+                                resultStory.appendChild(p);
+                            }
+                        });
+                    } else {
+                        const p = document.createElement('p');
+                        p.textContent = paraText;
+                        resultStory.appendChild(p);
+                    }
                 });
             } else {
                 const p = document.createElement('p');
@@ -1132,4 +1178,89 @@ Generated by AI Ghost Story Generator
             });
         });
     }
+
+    // =========================================================================
+    // 13. CUSTOM GEMINI API KEY MODAL (BRING YOUR OWN KEY)
+    // =========================================================================
+    const keyModal = document.getElementById('key-modal');
+    const openKeyModalBtn = document.getElementById('open-key-modal-btn');
+    const closeKeyModalBtn = document.getElementById('close-key-modal-btn');
+    const customKeyInput = document.getElementById('custom-gemini-key');
+    const saveKeyBtn = document.getElementById('save-key-btn');
+    const clearKeyBtn = document.getElementById('clear-key-btn');
+    const toggleKeyVisibilityBtn = document.getElementById('toggle-key-visibility-btn');
+    const keyStatusText = document.getElementById('key-status-text');
+    const navKeyBtn = document.getElementById('open-key-modal-btn');
+    const navKeyText = document.getElementById('nav-key-text');
+
+    function updateKeyModalUI() {
+        const savedKey = localStorage.getItem('custom_gemini_api_key') || "";
+        if (customKeyInput) customKeyInput.value = savedKey;
+
+        if (savedKey) {
+            if (keyStatusText) keyStatusText.textContent = "Active (Using Your Personal Gemini Key)";
+            if (navKeyBtn) navKeyBtn.classList.add('has-key');
+            if (navKeyText) navKeyText.textContent = "Custom Key (Active)";
+        } else {
+            if (keyStatusText) keyStatusText.textContent = "Using Shared Server Key & Quota Shield";
+            if (navKeyBtn) navKeyBtn.classList.remove('has-key');
+            if (navKeyText) navKeyText.textContent = "Gemini Key";
+        }
+    }
+
+    if (openKeyModalBtn && keyModal) {
+        openKeyModalBtn.addEventListener('click', () => {
+            updateKeyModalUI();
+            keyModal.classList.remove('hidden');
+            if (customKeyInput) customKeyInput.focus();
+        });
+    }
+
+    if (closeKeyModalBtn && keyModal) {
+        closeKeyModalBtn.addEventListener('click', () => {
+            keyModal.classList.add('hidden');
+        });
+    }
+
+    if (keyModal) {
+        keyModal.addEventListener('click', (e) => {
+            if (e.target === keyModal) {
+                keyModal.classList.add('hidden');
+            }
+        });
+    }
+
+    if (toggleKeyVisibilityBtn && customKeyInput) {
+        toggleKeyVisibilityBtn.addEventListener('click', () => {
+            const isPassword = customKeyInput.type === 'password';
+            customKeyInput.type = isPassword ? 'text' : 'password';
+            toggleKeyVisibilityBtn.textContent = isPassword ? '🔒' : '👁️';
+        });
+    }
+
+    if (saveKeyBtn && customKeyInput) {
+        saveKeyBtn.addEventListener('click', () => {
+            const val = customKeyInput.value.trim();
+            if (val) {
+                localStorage.setItem('custom_gemini_api_key', val);
+            } else {
+                localStorage.removeItem('custom_gemini_api_key');
+            }
+            updateKeyModalUI();
+            if (keyModal) keyModal.classList.add('hidden');
+        });
+    }
+
+    if (clearKeyBtn) {
+        clearKeyBtn.addEventListener('click', () => {
+            localStorage.removeItem('custom_gemini_api_key');
+            if (customKeyInput) customKeyInput.value = '';
+            updateKeyModalUI();
+            if (keyModal) keyModal.classList.add('hidden');
+        });
+    }
+
+    // Initialize UI on load
+    updateKeyModalUI();
 });
+
