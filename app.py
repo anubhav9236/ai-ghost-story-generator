@@ -301,6 +301,30 @@ def generate():
             "code": "RATE_LIMITED"
         }), 429
 
+    # Check if client requested Ancestral Lore Engine (offline / key-free mode)
+    use_lore_engine = data.get("use_lore_engine", False) or request.headers.get("X-Use-Lore-Engine") == "true"
+    allow_lore_fallback = request.headers.get("X-Allow-Lore-Fallback") == "true" or data.get("allow_lore_fallback", False)
+
+    if use_lore_engine:
+        title, story = generate_failsafe_story(
+            idea=idea,
+            category=category,
+            length=length,
+            language=language,
+            custom_title=custom_title if custom_title else None
+        )
+        return jsonify({
+            "success": True,
+            "title": title,
+            "story": story,
+            "category": category,
+            "length": length,
+            "language": language,
+            "model": "Ancestral Spirit Vault (Offline Lore Engine)",
+            "is_failsafe": True,
+            "notice": "Summoned instantly via the built-in Ancestral Lore Engine."
+        }), 200
+
     # Verify server-side or client-provided API key configuration
     client_key = request.headers.get("X-Gemini-API-Key") or (data.get("api_key") if isinstance(data, dict) else "")
     client_key = str(client_key).strip().strip('"\'') if client_key else ""
@@ -308,10 +332,32 @@ def generate():
     api_key = client_key or server_key
 
     if not api_key:
+        if allow_lore_fallback:
+            sys.stderr.write("[INFO] GEMINI_API_KEY not configured. Seamlessly generating with Ancestral Lore Engine...\n")
+            title, story = generate_failsafe_story(
+                idea=idea,
+                category=category,
+                length=length,
+                language=language,
+                custom_title=custom_title if custom_title else None
+            )
+            return jsonify({
+                "success": True,
+                "title": title,
+                "story": story,
+                "category": category,
+                "length": length,
+                "language": language,
+                "model": "Ancestral Spirit Vault (Quota-Safe Shield)",
+                "is_failsafe": True,
+                "notice": "GEMINI_API_KEY unconfigured; your story was summoned seamlessly by the Ancestral Spirit Vault."
+            }), 200
+
         return jsonify({
             "success": False,
-            "error": "The ghost realm is unconfigured. GEMINI_API_KEY is not set on the server. Please configure it in your Vercel Environment Variables.",
-            "code": "MISSING_API_KEY"
+            "error": "The ghost realm is unconfigured. GEMINI_API_KEY is not set on the server. Please configure it in your Vercel Environment Variables or in .env, or switch to Ancestral Lore mode.",
+            "code": "MISSING_API_KEY",
+            "can_fallback_to_lore": True
         }), 500
 
     prompt = construct_prompt(
@@ -517,7 +563,23 @@ def generate():
 if __name__ == "__main__":
     port = int(os.environ.get("PORT", 5000))
     debug = os.environ.get("FLASK_DEBUG", "False").lower() in ("true", "1", "t")
-    print(f"👻 AI Ghost Story Generator starting on http://127.0.0.1:{port}")
-    print(f"🔮 AI Provider: Google Gemini ({GEMINI_MODEL})")
-    print(f"🔑 GEMINI_API_KEY Configured: {'Yes' if os.environ.get('GEMINI_API_KEY') else 'No (set GEMINI_API_KEY in .env)'}")
+
+    # Detect local Wi-Fi / LAN IP for convenient mobile device access
+    local_ip = "127.0.0.1"
+    try:
+        import socket
+        s = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
+        s.connect(("8.8.8.8", 80))
+        local_ip = s.getsockname()[0]
+        s.close()
+    except Exception:
+        pass
+
+    print("=" * 64)
+    print("👻 AI Ghost Story Generator Server Started!")
+    print(f"🔮 AI Engine: Google Gemini ({GEMINI_MODEL}) & Ancestral Lore Engine")
+    print(f"🔑 GEMINI_API_KEY Configured: {'Yes' if os.environ.get('GEMINI_API_KEY') else 'No (set in .env or enter in UI)'}")
+    print(f"💻 Desktop / Localhost URL: http://127.0.0.1:{port}")
+    print(f"📱 Mobile / Wi-Fi URL:     http://{local_ip}:{port}")
+    print("=" * 64)
     app.run(host="0.0.0.0", port=port, debug=debug)

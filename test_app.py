@@ -132,6 +132,27 @@ def test_generate_missing_api_key(client):
         assert "GEMINI_API_KEY is not set" in data["error"]
 
 
+def test_generate_direct_lore_engine_without_api_key(client):
+    """Confirm requesting Ancestral Lore Engine generates story with HTTP 200 even without API key."""
+    with patch.dict(os.environ, {"GEMINI_API_KEY": ""}):
+        response = client.post(
+            "/generate",
+            json={
+                "idea": "A phantom train on abandoned tracks.",
+                "category": "Supernatural Horror",
+                "length": "Short",
+                "use_lore_engine": True
+            }
+        )
+        assert response.status_code == 200
+        data = response.get_json()
+        assert data["success"] is True
+        assert data.get("is_failsafe") is True
+        assert data["category"] == "Supernatural Horror"
+        assert len(data["story"]) > 50
+
+
+
 def test_generate_gemini_api_error(client):
     """Confirm general Gemini API error returns HTTP 500 with safe error message."""
     with patch.dict(os.environ, {"GEMINI_API_KEY": "fake_key_123"}):

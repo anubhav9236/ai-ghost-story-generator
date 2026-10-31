@@ -383,6 +383,26 @@
                                     </div>
                                 </div>
 
+                                <!-- AI Engine Selector -->
+                                <div class="form-group">
+                                    <label class="form-label" id="engine-label">
+                                        <span class="label-icon" aria-hidden="true">🔮</span>
+                                        <span>Storytelling Engine</span>
+                                    </label>
+                                    <div class="language-grid" role="radiogroup" aria-labelledby="engine-label">
+                                        <label class="language-pill engine-pill active" id="engine-pill-gemini">
+                                            <input type="radio" name="engine" value="gemini" checked>
+                                            <span class="pill-flag" aria-hidden="true">✨</span>
+                                            <span class="pill-label">Google Gemini AI</span>
+                                        </label>
+                                        <label class="language-pill engine-pill" id="engine-pill-lore">
+                                            <input type="radio" name="engine" value="lore">
+                                            <span class="pill-flag" aria-hidden="true">🛡️</span>
+                                            <span class="pill-label">Ancestral Lore (Key-Free)</span>
+                                        </label>
+                                    </div>
+                                </div>
+
                                 <!-- Story Category Selector -->
                                 <div class="form-group">
                                     <label class="form-label" id="category-label">
@@ -517,6 +537,10 @@
                                 <p class="error-message" id="error-message"></p>
                                 <div class="error-troubleshooting hidden" id="error-troubleshooting">
                                     <ul id="troubleshooting-steps"></ul>
+                                </div>
+                                <div class="error-actions hidden" id="error-actions" style="margin-top: 14px; display: flex; gap: 10px; flex-wrap: wrap;">
+                                    <button type="button" class="btn btn-primary" id="error-action-key-btn" style="padding: 8px 16px; font-size: 0.85rem;">🔑 Enter Gemini Key</button>
+                                    <button type="button" class="btn btn-secondary" id="error-action-lore-btn" style="padding: 8px 16px; font-size: 0.85rem; border: 1px solid #a855f7; color: #fff;">🛡️ Summon with Offline Lore Engine</button>
                                 </div>
                             </div>
                             <button type="button" class="btn-close-error" id="close-error-btn" aria-label="Dismiss error notification">✕</button>

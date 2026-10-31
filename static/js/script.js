@@ -1,3 +1,4 @@
+
 /**
  * AI Ghost Story Generator - Frontend Application Logic
  * Upgraded with Horror Voice Narration (Web Speech API) and 
@@ -18,9 +19,10 @@ document.addEventListener('DOMContentLoaded', () => {
     const customTitleInput = document.getElementById('custom-title');
     const interactiveGhost = document.getElementById('interactive-ghost');
     const ghostSpeechBubble = document.getElementById('ghost-speech-bubble');
-    
-    // Language, Category, & Length Selectors
-    const languagePills = document.querySelectorAll('.language-pill');
+
+    // Language, Engine, Category, & Length Selectors
+    const languagePills = document.querySelectorAll('.language-pill:not(.engine-pill)');
+    const enginePills = document.querySelectorAll('.engine-pill');
     const categoryPills = document.querySelectorAll('.category-pill');
     const lengthOptions = document.querySelectorAll('.length-option');
 
@@ -200,6 +202,16 @@ document.addEventListener('DOMContentLoaded', () => {
         });
     });
 
+    // Engine selector pills
+    enginePills.forEach(pill => {
+        pill.addEventListener('click', () => {
+            enginePills.forEach(p => p.classList.remove('active'));
+            pill.classList.add('active');
+            const radio = pill.querySelector('input[type="radio"]');
+            if (radio) radio.checked = true;
+        });
+    });
+
     // Category pills
     categoryPills.forEach(pill => {
         pill.addEventListener('click', () => {
@@ -223,7 +235,11 @@ document.addEventListener('DOMContentLoaded', () => {
     // =========================================================================
     // 4. ERROR AND NOTICE MANAGEMENT
     // =========================================================================
-    function showError(message, troubleshooting = null) {
+    const errorActions = document.getElementById('error-actions');
+    const errorActionKeyBtn = document.getElementById('error-action-key-btn');
+    const errorActionLoreBtn = document.getElementById('error-action-lore-btn');
+
+    function showError(message, troubleshooting = null, canFallback = false) {
         if (!errorBanner) return;
         if (errorMessage) errorMessage.textContent = message;
 
@@ -239,13 +255,40 @@ document.addEventListener('DOMContentLoaded', () => {
             errorTroubleshooting.classList.add('hidden');
         }
 
+        if (errorActions) {
+            if (canFallback) {
+                errorActions.classList.remove('hidden');
+            } else {
+                errorActions.classList.add('hidden');
+            }
+        }
+
         errorBanner.classList.remove('hidden');
         errorBanner.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
     }
 
     function clearError() {
         if (errorBanner) errorBanner.classList.add('hidden');
+        if (errorActions) errorActions.classList.add('hidden');
         if (ideaError) ideaError.textContent = '';
+    }
+
+    if (errorActionKeyBtn) {
+        errorActionKeyBtn.addEventListener('click', () => {
+            const keyModalBtn = document.getElementById('open-key-modal-btn');
+            if (keyModalBtn) keyModalBtn.click();
+        });
+    }
+
+    if (errorActionLoreBtn) {
+        errorActionLoreBtn.addEventListener('click', () => {
+            const lorePill = document.getElementById('engine-pill-lore');
+            if (lorePill) lorePill.click();
+            clearError();
+            if (storyForm) {
+                storyForm.dispatchEvent(new Event('submit', { cancelable: true }));
+            }
+        });
     }
 
     if (closeErrorBtn) {
@@ -391,7 +434,7 @@ document.addEventListener('DOMContentLoaded', () => {
                 try {
                     this.masterGain.gain.setValueAtTime(this.masterGain.gain.value, this.ctx.currentTime);
                     this.masterGain.gain.exponentialRampToValueAtTime(0.0001, this.ctx.currentTime + 0.4);
-                } catch (e) {}
+                } catch (e) { }
             }
             setTimeout(() => {
                 this.stopNodes();
@@ -400,11 +443,11 @@ document.addEventListener('DOMContentLoaded', () => {
         }
 
         stopNodes() {
-            try { if (this.windNode) { this.windNode.stop(); this.windNode.disconnect(); } } catch (e) {}
-            try { if (this.lfo) { this.lfo.stop(); this.lfo.disconnect(); } } catch (e) {}
-            try { if (this.drone1) { this.drone1.stop(); this.drone1.disconnect(); } } catch (e) {}
-            try { if (this.drone2) { this.drone2.stop(); this.drone2.disconnect(); } } catch (e) {}
-            try { if (this.masterGain) { this.masterGain.disconnect(); } } catch (e) {}
+            try { if (this.windNode) { this.windNode.stop(); this.windNode.disconnect(); } } catch (e) { }
+            try { if (this.lfo) { this.lfo.stop(); this.lfo.disconnect(); } } catch (e) { }
+            try { if (this.drone1) { this.drone1.stop(); this.drone1.disconnect(); } } catch (e) { }
+            try { if (this.drone2) { this.drone2.stop(); this.drone2.disconnect(); } } catch (e) { }
+            try { if (this.masterGain) { this.masterGain.disconnect(); } } catch (e) { }
             this.windNode = null;
             this.lfo = null;
             this.drone1 = null;
@@ -418,7 +461,7 @@ document.addEventListener('DOMContentLoaded', () => {
                 try {
                     this.masterGain.gain.setValueAtTime(this.masterGain.gain.value, this.ctx.currentTime);
                     this.masterGain.gain.linearRampToValueAtTime(this.volume, this.ctx.currentTime + 0.1);
-                } catch (e) {}
+                } catch (e) { }
             }
         }
     }
@@ -430,7 +473,7 @@ document.addEventListener('DOMContentLoaded', () => {
         atmosphereToggleBtn.addEventListener('click', () => {
             atmosphereEngine.isEnabled = !atmosphereEngine.isEnabled;
             atmosphereToggleBtn.setAttribute('aria-pressed', atmosphereEngine.isEnabled);
-            
+
             if (atmosphereEngine.isEnabled) {
                 atmosphereToggleBtn.classList.add('active');
                 if (atmosphereBtnText) atmosphereBtnText.textContent = "Haunted Atmosphere: ON";
@@ -518,7 +561,7 @@ document.addEventListener('DOMContentLoaded', () => {
                 opt.value = voice.name;
                 const langTag = voice.lang || 'unknown';
                 opt.textContent = `${voice.name} (${langTag})${voice.default ? ' [Default]' : ''}`;
-                
+
                 if (langTag.startsWith('hi')) {
                     hindiVoiceCount++;
                 }
@@ -550,20 +593,20 @@ document.addEventListener('DOMContentLoaded', () => {
 
             if (isHindi) {
                 // Priority 1: Direct Hindi language tag
-                const hiVoice = this.availableVoices.find(v => 
+                const hiVoice = this.availableVoices.find(v =>
                     (v.lang && (v.lang.toLowerCase() === 'hi-in' || v.lang.toLowerCase().startsWith('hi'))) ||
                     (v.name && (v.name.toLowerCase().includes('hindi') || v.name.includes('हिन्दी') || v.name.includes('Kalpana') || v.name.includes('Hemant')))
                 );
                 if (hiVoice) return hiVoice;
             } else {
                 // English: Prefer deeper, natural English voices (Google, Microsoft David, Mark, etc.)
-                const deepEnVoice = this.availableVoices.find(v => 
-                    v.lang && v.lang.toLowerCase().startsWith('en') && 
-                    (v.name.toLowerCase().includes('david') || 
-                     v.name.toLowerCase().includes('mark') || 
-                     v.name.toLowerCase().includes('google us') || 
-                     v.name.toLowerCase().includes('guy') ||
-                     v.name.toLowerCase().includes('natural'))
+                const deepEnVoice = this.availableVoices.find(v =>
+                    v.lang && v.lang.toLowerCase().startsWith('en') &&
+                    (v.name.toLowerCase().includes('david') ||
+                        v.name.toLowerCase().includes('mark') ||
+                        v.name.toLowerCase().includes('google us') ||
+                        v.name.toLowerCase().includes('guy') ||
+                        v.name.toLowerCase().includes('natural'))
                 );
                 if (deepEnVoice) return deepEnVoice;
 
@@ -731,7 +774,7 @@ document.addEventListener('DOMContentLoaded', () => {
             this.state = 'playing';
             this.updatePlayerUI('playing');
             atmosphereEngine.resume();
-            
+
             // Workaround for browser bug where synth.resume() stays suspended:
             // If resume does not resume speech within 300ms, re-speak current chunk
             this.synth.resume();
@@ -887,6 +930,7 @@ document.addEventListener('DOMContentLoaded', () => {
 
             const idea = ideaInput.value.trim();
             const languageInput = document.querySelector('input[name="language"]:checked');
+            const engineInput = document.querySelector('input[name="engine"]:checked');
             const categoryInput = document.querySelector('input[name="category"]:checked');
             const lengthInput = document.querySelector('input[name="length"]:checked');
             const customTitle = customTitleInput ? customTitleInput.value.trim() : "";
@@ -905,6 +949,7 @@ document.addEventListener('DOMContentLoaded', () => {
             const language = languageInput ? languageInput.value : "English";
             const category = categoryInput ? categoryInput.value : "Haunted House";
             const length = lengthInput ? lengthInput.value : "Medium";
+            const useLore = engineInput ? (engineInput.value === "lore") : false;
 
             // Stop any existing narration when generating a new story
             voiceNarrator.stop();
@@ -915,10 +960,14 @@ document.addEventListener('DOMContentLoaded', () => {
             const customApiKey = localStorage.getItem('custom_gemini_api_key') || "";
             const headers = {
                 'Content-Type': 'application/json',
-                'Accept': 'application/json'
+                'Accept': 'application/json',
+                'X-Allow-Lore-Fallback': 'true'
             };
             if (customApiKey) {
                 headers['X-Gemini-API-Key'] = customApiKey;
+            }
+            if (useLore) {
+                headers['X-Use-Lore-Engine'] = 'true';
             }
 
             const bodyPayload = {
@@ -926,7 +975,9 @@ document.addEventListener('DOMContentLoaded', () => {
                 category: category,
                 length: length,
                 language: language,
-                title: customTitle
+                title: customTitle,
+                use_lore_engine: useLore,
+                allow_lore_fallback: true
             };
             if (customApiKey) {
                 bodyPayload.api_key = customApiKey;
@@ -942,8 +993,32 @@ document.addEventListener('DOMContentLoaded', () => {
                 const data = await response.json();
 
                 if (!response.ok || !data.success) {
+                    // Auto-rescue: Seamlessly switch to Ancestral Lore Engine if API key is unconfigured
+                    if (data.code === "MISSING_API_KEY" || data.can_fallback_to_lore) {
+                        console.log("No Gemini API key detected. Seamlessly invoking Ancestral Lore Engine...");
+                        const lorePill = document.getElementById('engine-pill-lore');
+                        if (lorePill) lorePill.click();
+
+                        bodyPayload.use_lore_engine = true;
+                        headers['X-Use-Lore-Engine'] = 'true';
+
+                        const retryRes = await fetch('/generate', {
+                            method: 'POST',
+                            headers: headers,
+                            body: JSON.stringify(bodyPayload)
+                        });
+                        const retryData = await retryRes.json();
+                        if (retryRes.ok && retryData.success) {
+                            clearError();
+                            displayStoryResult(retryData);
+                            triggerAutoplayIfNeeded(retryData, language);
+                            return;
+                        }
+                    }
+
                     const errMsg = data.error || "The ghost realm is temporarily unavailable. Please try again shortly.";
-                    showError(errMsg);
+                    const canFallback = Boolean(data.can_fallback_to_lore || data.code === "MISSING_API_KEY");
+                    showError(errMsg, null, canFallback);
                     return;
                 }
 
@@ -1260,7 +1335,25 @@ Generated by AI Ghost Story Generator
         });
     }
 
+    // Auto-detect server configuration and auto-select Lore Engine if key is unconfigured
+    async function checkServerHealthAndConfig() {
+        try {
+            const res = await fetch('/health');
+            if (res.ok) {
+                const data = await res.json();
+                const customKey = localStorage.getItem('custom_gemini_api_key') || "";
+                if (!data.api_key_configured && !customKey) {
+                    const lorePill = document.getElementById('engine-pill-lore');
+                    if (lorePill) lorePill.click();
+                }
+            }
+        } catch (e) {
+            // Ignore background health check errors
+        }
+    }
+
     // Initialize UI on load
     updateKeyModalUI();
+    checkServerHealthAndConfig();
 });
 
